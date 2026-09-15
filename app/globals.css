@@ -1,0 +1,80 @@
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap');
+
+:root {
+  --color-primary: #D97706;
+  --color-primary-hover: #B45309;
+  --color-secondary: #FBF9F5;
+  --color-tertiary: #10B981;
+  --color-neutral-dark: #1A1715;
+  --color-neutral-card: #24201D;
+  --color-neutral-border: #38322E;
+  
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
+body {
+  background-color: var(--color-neutral-dark);
+  color: #F3F4F6;
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, .font-display {
+  font-family: var(--font-display);
+}
+
+/* Custom Glassmorphism Surfaces */
+.glass-panel {
+  background: rgba(36, 32, 29, 0.75);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(217, 119, 6, 0.15);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.glass-panel-hover {
+  transition: all 0.3s ease;
+}
+
+.glass-panel-hover:hover {
+  border-color: rgba(217, 119, 6, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px 0 rgba(217, 119, 6, 0.15);
+}
+
+/* Custom Amber Accent Utilities */
+.text-amber-glow {
+  color: #D97706;
+  text-shadow: 0 0 16px rgba(217, 119, 6, 0.35);
+}
+
+.border-amber-glow {
+  border-color: #D97706;
+  box-shadow: 0 0 12px rgba(217, 119, 6, 0.25);
+}
+
+/* Scrollbar Customization */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1A1715;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #38322E;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #D97706;
+}
