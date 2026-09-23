@@ -1,45 +1,6 @@
-"use server";
-
-import { z } from "zod";
-import { KOTStatus } from "@prisma/client";
-import { getAuthenticatedSession } from "@/lib/auth/clerk";
-import { resolveTenantContext, requirePermission } from "@/lib/auth/tenant-context";
-import { getTenantKOTTickets, updateKOTStatus } from "@/lib/services/kot";
-import { ValidationError } from "@/lib/errors";
-
-const KOTStatusSchema = z.nativeEnum(KOTStatus);
-
-export async function getKOTTicketsAction(
-  filters?: { status?: KOTStatus; kitchenSection?: string },
-  requestedTenantId?: string
-) {
-  const session = await getAuthenticatedSession();
-  const context = resolveTenantContext(session, requestedTenantId);
-  requirePermission(context, "kitchen:view_queue");
-
-  const tickets = await getTenantKOTTickets(context.tenantId, filters);
-  return { success: true, tickets };
-}
-
-export async function updateKOTStatusAction(
-  kotId: string,
-  nextStatus: KOTStatus,
-  requestedTenantId?: string
-) {
-  const session = await getAuthenticatedSession();
-  const context = resolveTenantContext(session, requestedTenantId);
-  requirePermission(context, "kitchen:view_queue");
-
-  const parsedStatus = KOTStatusSchema.safeParse(nextStatus);
-  if (!parsedStatus.success) {
-    throw new ValidationError("Invalid KOT status requested");
-  }
-
-  const updatedTicket = await updateKOTStatus(
-    context.tenantId,
-    kotId,
-    parsedStatus.data
-  );
-
-  return { success: true, ticket: updatedTicket };
-}
+/**
+ * `/restaurant/kds` was the baseline duplicate of the kitchen board; the screen now lives at `/restaurant/kitchen`
+ * (frontend.md §2) and this module only re-exports its actions so existing imports keep resolving. Nothing new should
+ * import from here — use `@/app/restaurant/kitchen/actions`.
+ */
+export { getKOTTicketsAction, getKitchenSectionsAction, updateKOTStatusAction } from "../kitchen/actions";

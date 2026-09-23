@@ -1,28 +1,24 @@
 ---
-title: "Threat Model & Attack Vector Mitigation"
-document_type: "THREAT_MODEL"
-project: "Restaurant SaaS Platform (RASOIOS)"
+title: "Threat Model (Domain Reference)"
+document_type: "REFERENCE"
+project: "Restaurant SaaS Platform"
 project_owner: "Gopala Krishna"
-status: "APPROVED"
-version: "1.0"
+slice: "SLICE-01"
+status: "PROPOSED"
+version: "2.0"
 created: "2026-09-15"
 last_updated: "2026-09-15"
-author: "Gopala Krishna"
-review_owner: "Gopala Krishna"
-target_slice: "ALL"
-target_start_date: "2026-09-15"
-target_end_date: "2026-11-22"
-priority: "CRITICAL"
+owner: "Gopala Krishna (Project Owner)"
+planned_start: "2026-09-15"
+planned_finish: "Not scheduled — execution-order plan"
 dependencies: []
-related_documents: ["security.md"]
-related_decisions: ["ADR-003"]
+related_documents: ["../implementation/slice-01/threat-model.md"]
+related_decisions: []
 ---
 
-# Threat Model & Attack Vector Mitigation
+# Threat Model
+> **Canonical source:** [`../implementation/slice-01/threat-model.md`](../implementation/slice-01/threat-model.md). This domain file keeps only the durable summary for threats T-001…T-030. Detail lives in the canonical
+> file and is not repeated here (knowledge/README.md §Document responsibilities).
 
-| Threat Vector | Description | Mitigation Strategy |
-|---|---|---|
-| **IDOR / Tenant Leak** | User A manipulates `tenantId` in request to fetch Tenant B orders. | Rejected server-side by `resolveTenantContext()` + `assertTenantOwnership()`. |
-| **Privilege Escalation** | Cashier sends request to edit menu prices or refund orders. | Rejected by `requirePermission(context, "refund:process")`. |
-| **SQL Injection** | Malicious SQL string injected into menu search query. | Sanitized by Prisma parameterized query engine. |
-| **Cross-Tenant Print Leak**| Agent for Tenant A polls print queue for Tenant B. | Server verifies agent API key maps strictly to Tenant A. |
+
+v1.0 listed 4 threats and claimed agent API key verification that did not exist (BA-01). The canonical model marks baseline exposure honestly and maps each mitigation to tests.

@@ -1,178 +1,157 @@
-import { prisma } from "@/lib/db/prisma";
-import { KOTStatus, Prisma } from "@prisma/client";
+import "server-only";
+import type { KotStatus } from "@prisma/client";
+import type { TenantContext } from "@/lib/auth/context-types";
+import { audit } from "@/lib/audit/write";
+import { assertTransitionAllowed } from "@/lib/auth/transitions";
+import {
+  cancelOpenKotsOfOrder,
+  createKotWithItems,
+  findKitchenTicketById,
+  findKotStatus,
+  findOrderRoundForKot,
+  kotSectionsOfRound,
+  listKitchenSections,
+  listKitchenTickets,
+  nextKotNumber,
+  setKotStatus,
+  type KitchenSectionOption,
+  type KitchenTicket,
+  type KitchenTicketFilters,
+  type OrderRoundForKot,
+} from "@/lib/data/kot";
+import { required } from "@/lib/data/scope";
+import { withTx, type Tx } from "@/lib/data/tx";
+import { ConflictError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
-
-export interface KOTFilters {
-  status?: KOTStatus;
-  kitchenSection?: string;
-  limit?: number;
-}
-
-const ALLOWED_KOT_TRANSITIONS: Record<KOTStatus, KOTStatus[]> = {
-  QUEUED: [KOTStatus.PREPARING, KOTStatus.READY],
-  PREPARING: [KOTStatus.READY],
-  READY: [KOTStatus.SERVED],
-  SERVED: [],
-};
+import { syncOrderWithKitchen } from "@/lib/services/order-derivation";
+import { enqueueKotPrintJobs } from "@/lib/services/printing";
+import { businessDateFor } from "@/lib/time/business-date";
 
 /**
- * Generates sequential KOT number for a tenant (e.g. KOT-101).
+ * KOT engine (S1-P14). The tenant always comes from `ctx` and every read/write goes through `lib/data/kot.ts`.
+ * Payloads use the kitchen projection (SC-RBAC-07). Tickets are generated inside the order's acceptance transaction
+ * (security.md §3.4) — one per kitchen section per round — and cancelled with the order.
  */
-export async function generateKOTNumber(tenantId: string): Promise<string> {
-  const count = await prisma.kOTTicket.count({
-    where: {
-      tenantId,
-      createdAt: {
-        gte: new Date(new Date().setHours(0, 0, 0, 0)),
-      },
-    },
-  });
+export type { KitchenSectionOption, KitchenTicket, KitchenTicketFilters };
 
-  const sequence = 100 + count + 1;
-  return `KOT-${sequence}`;
+/** LD-KOT-01: the context tenant's tickets (active queue unless a status is given). */
+export async function getTenantKOTTickets(ctx: TenantContext, filters: KitchenTicketFilters = {}): Promise<KitchenTicket[]> {
+  return listKitchenTickets(ctx, filters);
 }
 
+/** The context tenant's active kitchen sections. */
+export async function getTenantKitchenSections(ctx: TenantContext): Promise<KitchenSectionOption[]> {
+  return listKitchenSections(ctx);
+}
+
+type OrderLine = OrderRoundForKot["items"][number];
+
 /**
- * Generates a KOT Ticket for an order.
+ * S1-P14-T001: creates the tickets of one round of an order inside the caller's transaction — one per kitchen section
+ * of the round's lines (lines without a section share one ticket), each with its K-NNN number from the counter and
+ * immutable item snapshots. Idempotent per (order, section, round) (U-KOT-2): sections that already have a ticket are
+ * skipped, so a retried acceptance creates nothing. Audits `kot.generated` per ticket. Returns the new ticket ids.
  */
-export async function generateKOTTicketsForOrder(
-  tenantId: string,
-  orderId: string,
-  kitchenSection?: string
-) {
-  const order = await prisma.order.findFirst({
-    where: { id: orderId, tenantId },
-    include: { items: true },
-  });
+export async function generateKotsForRound(tx: Tx, ctx: TenantContext, orderId: string, round = 1): Promise<string[]> {
+  const order = required(await findOrderRoundForKot(tx, ctx, orderId, round), "Order");
+  const existing = await kotSectionsOfRound(tx, ctx, orderId, round);
 
-  if (!order) {
-    throw new Error("Order not found or tenant access mismatch");
+  const groups = new Map<string | null, OrderLine[]>();
+  for (const line of order.items) {
+    if (existing.has(line.kitchenSectionId)) continue;
+    groups.set(line.kitchenSectionId, [...(groups.get(line.kitchenSectionId) ?? []), line]);
   }
 
-  // Check if KOT ticket already exists for this order & section
-  const existing = await prisma.kOTTicket.findFirst({
-    where: { tenantId, orderId, kitchenSection: kitchenSection || null },
-  });
-
-  if (existing) {
-    return existing;
-  }
-
-  const kotNumber = await generateKOTNumber(tenantId);
-
-  const ticket = await prisma.kOTTicket.create({
-    data: {
-      tenantId,
-      orderId,
+  const businessDate = businessDateFor(new Date(), ctx.restaurant.timezone);
+  const created: string[] = [];
+  for (const [kitchenSectionId, lines] of groups) {
+    const kotNumber = await nextKotNumber(tx, ctx, businessDate);
+    const { id } = await createKotWithItems(tx, ctx, {
+      orderId: order.id,
+      kitchenSectionId,
+      roundNumber: round,
+      businessDate,
       kotNumber,
-      kitchenSection: kitchenSection || "MAIN_KITCHEN",
-      status: KOTStatus.QUEUED,
-      notes: order.notes || null,
-    },
-    include: {
-      order: {
-        include: {
-          items: true,
-          customer: true,
-        },
-      },
-    },
-  });
-
-  logger.info("KOT_TICKET_GENERATED", {
-    tenantId,
-    orderId,
-    kotNumber,
-    kitchenSection: ticket.kitchenSection,
-  });
-
-  return ticket;
+      priority: order.priority,
+      orderTypeSnapshot: order.orderType,
+      tableLabelSnapshot: order.tableLabel,
+      notesSnapshot: order.notes,
+      items: lines.map((line) => ({
+        orderItemId: line.id,
+        quantity: line.quantity,
+        itemLabelSnapshot: line.variantNameSnapshot ? `${line.itemNameSnapshot} (${line.variantNameSnapshot})` : line.itemNameSnapshot,
+        addonsSnapshot: line.addons.length ? line.addons.map((a) => a.nameSnapshot).join(", ").slice(0, 280) : null,
+        instructionsSnapshot: line.specialInstructions,
+      })),
+    });
+    await audit(tx, ctx, {
+      action: "kot.generated",
+      resourceType: "kot_ticket",
+      resourceId: id,
+      after: { orderId: order.id, kitchenSectionId, kotNumber, roundNumber: round, status: "QUEUED", itemCount: lines.length },
+    });
+    created.push(id);
+  }
+  if (created.length > 0) {
+    logger.info("kot.generated", { requestId: ctx.requestId, tenantId: ctx.tenantId, orderId, round, count: created.length });
+    // S1-P16-T003: KOT print jobs are queued in this same transaction, so a ticket and its job commit together
+    // (ADR-007 §6). Honours RESTAURANT.auto_print_kot and creates nothing when no printer serves the section.
+    await enqueueKotPrintJobs(tx, ctx, created);
+  }
+  return created;
 }
 
 /**
- * Updates KOT ticket status with state machine transition guards.
+ * S1-P14-T003: cancels the order's open tickets inside the order-cancellation transaction and audits each
+ * (`kot.status_changed` → CANCELLED). SERVED tickets are never altered. Returns how many changed.
  */
-export async function updateKOTStatus(
-  tenantId: string,
-  kotId: string,
-  nextStatus: KOTStatus
-) {
-  const ticket = await prisma.kOTTicket.findFirst({
-    where: { id: kotId, tenantId },
-  });
-
-  if (!ticket) {
-    throw new Error("KOT ticket not found or cross-tenant access violation");
+export async function cancelKotsWithOrder(tx: Tx, ctx: TenantContext, orderId: string): Promise<number> {
+  const cancelled = await cancelOpenKotsOfOrder(tx, ctx, orderId);
+  for (const kot of cancelled) {
+    await audit(tx, ctx, {
+      action: "kot.status_changed",
+      resourceType: "kot_ticket",
+      resourceId: kot.id,
+      before: { status: kot.status },
+      after: { status: "CANCELLED", trigger: "order_cancelled", orderId },
+    });
   }
-
-  const currentStatus = ticket.status;
-  const allowed = ALLOWED_KOT_TRANSITIONS[currentStatus] || [];
-
-  if (!allowed.includes(nextStatus)) {
-    throw new Error(
-      `Invalid KOT status transition from ${currentStatus} to ${nextStatus}`
-    );
-  }
-
-  const updated = await prisma.kOTTicket.update({
-    where: { id: kotId },
-    data: { status: nextStatus },
-    include: {
-      order: {
-        include: {
-          items: true,
-          customer: true,
-        },
-      },
-    },
-  });
-
-  logger.info("KOT_STATUS_UPDATED", {
-    tenantId,
-    kotId,
-    kotNumber: ticket.kotNumber,
-    previousStatus: currentStatus,
-    newStatus: nextStatus,
-  });
-
-  return updated;
+  return cancelled.length;
 }
 
 /**
- * Retrieves KOT tickets for tenant with optional section and status filtering.
+ * SA-KOT-01 (S1-P14-T002): moves a ticket one step along the shared transition table (security.md §3.4), stamps the
+ * step, audits `kot.status_changed`, and derives the order's status (first ticket started → PREPARING; every ticket of
+ * the latest round READY/SERVED → READY) — all in one transaction. Missing and other-tenant tickets are NOT_FOUND; a
+ * repeated target is a no-op (api.md SA-KOT-01 idempotency). The caller has checked the target's permission.
  */
-export async function getTenantKOTTickets(
-  tenantId: string,
-  filters?: KOTFilters
-) {
-  const whereClause: Prisma.KOTTicketWhereInput = {
-    tenantId,
-  };
+export async function updateKOTStatus(ctx: TenantContext, kotId: string, toStatus: KotStatus): Promise<KitchenTicket> {
+  const result = await withTx(ctx, async (tx) => {
+    const current = required(await findKotStatus(tx, ctx, kotId), "KOT");
+    if (current.status === toStatus) return { changed: false as const };
+    assertTransitionAllowed(ctx, "kot", current.status, toStatus);
 
-  if (filters?.status) {
-    whereClause.status = filters.status;
-  } else {
-    // By default for KDS, show active tickets (exclude SERVED unless explicitly requested)
-    whereClause.status = {
-      in: [KOTStatus.QUEUED, KOTStatus.PREPARING, KOTStatus.READY],
-    };
-  }
+    if (!(await setKotStatus(tx, ctx, kotId, current.status, toStatus))) {
+      // Changed concurrently between the read and the compare-and-set.
+      const latest = required(await findKotStatus(tx, ctx, kotId), "KOT");
+      if (latest.status === toStatus) return { changed: false as const };
+      assertTransitionAllowed(ctx, "kot", latest.status, toStatus);
+      throw new ConflictError("The ticket was changed by someone else. Refresh and try again.", "STALE_VERSION");
+    }
 
-  if (filters?.kitchenSection && filters.kitchenSection !== "ALL") {
-    whereClause.kitchenSection = filters.kitchenSection;
-  }
-
-  return prisma.kOTTicket.findMany({
-    where: whereClause,
-    include: {
-      order: {
-        include: {
-          items: true,
-          customer: true,
-        },
-      },
-    },
-    orderBy: { createdAt: "asc" }, // Oldest tickets first on KDS line
-    take: filters?.limit || 50,
+    await audit(tx, ctx, {
+      action: "kot.status_changed",
+      resourceType: "kot_ticket",
+      resourceId: kotId,
+      before: { status: current.status },
+      after: { status: toStatus },
+    });
+    const derived = await syncOrderWithKitchen(tx, ctx, current.orderId, { kotId, kotStatus: toStatus });
+    return { changed: true as const, from: current.status, derived };
   });
+
+  if (result.changed) {
+    logger.info("kot.status_changed", { requestId: ctx.requestId, tenantId: ctx.tenantId, kotId, from: result.from, to: toStatus, orderStatus: result.derived.at(-1) ?? null });
+  }
+  return required(await findKitchenTicketById(ctx, kotId), "KOT");
 }

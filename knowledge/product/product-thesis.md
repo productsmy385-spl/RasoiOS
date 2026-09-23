@@ -1,42 +1,51 @@
 ---
-title: "Product Thesis & Market Positioning"
+title: "Product Thesis"
 document_type: "PRODUCT_THESIS"
-project: "Restaurant SaaS Platform (RASOIOS)"
+project: "Restaurant SaaS Platform"
 project_owner: "Gopala Krishna"
-status: "APPROVED"
-version: "1.0"
+slice: "SLICE-01"
+status: "PROPOSED"
+version: "2.0"
 created: "2026-09-15"
 last_updated: "2026-09-15"
-author: "Gopala Krishna"
-review_owner: "Gopala Krishna"
-target_slice: "ALL"
-target_start_date: "2026-09-15"
-target_end_date: "2026-11-22"
-priority: "CRITICAL"
+owner: "Gopala Krishna (Project Owner)"
+planned_start: "2026-09-15"
+planned_finish: "Not scheduled — execution-order plan"
 dependencies: []
-related_documents: ["prd.md", "personas.md"]
-related_decisions: ["ADR-002"]
+related_documents: ["../implementation/slice-01/prd.md","scope.md"]
+related_decisions: ["RASOIOS-ADR-002"]
 ---
 
-# Product Thesis & Market Positioning
+# Product Thesis
 
-## 1. Problem Statement
-Restaurant operators currently deal with fragmented systems: generic web builders for branding, third-party food aggregators taking high commission cuts, disconnected kitchen displays, and unreliable receipt printing hardware. Furthermore, traditional SaaS platforms enforce complex monthly subscription tier gating that limits operational features.
+## Problem
+Restaurant operators juggle separate tools: website builders for the menu, paper or ad-hoc kitchen tickets, standalone receipt printers, and
+spreadsheets for daily sales. Cloud software cannot print directly to a USB/LAN thermal printer behind a restaurant router without a local component.
+Many restaurant platforms also gate operational features behind subscription tiers (KB v1.0 thesis, retained).
 
-## 2. Product Insight & Thesis
-A unified, multi-tenant digital restaurant operating system combining public online branding, daily menu management, POS order entry, kitchen order ticketing (KOT), and automated thermal print agent dispatch—sold as a single software product/license—provides complete operational control without subscription tier friction.
+## Thesis
+A single multi-tenant restaurant operating system, sold as a software product/licence, covers the operational loop:
+**public menu → order entry → kitchen ticket (screen + thermal print) → payment → reconciliation → reports**. It gives restaurants complete
+control without tier friction, provided tenant isolation and money correctness are uncompromising.
 
-## 3. Core Operating Loop
+## Core operating loop
+
 ```
-[ Customer / Waiter ] ──( Places Order )──► [ Real-Time Order Engine ]
-                                                   │
-                                     ┌─────────────┴─────────────┐
-                                     ▼                           ▼
-                           [ Kitchen KDS / KOT ]        [ Cloud Print Queue ]
-                                     │                           │
-                                     ▼                           ▼
-                            [ Preparation Ready ]       [ Thermal Printer Agent ]
+Staff (or diner, if Q-001 approves) ──► Order (server-priced, snapshotted)
+                                          │ accepted
+                          ┌───────────────┴───────────────┐
+                          ▼                               ▼
+                 Kitchen board (≤5 s)            Cloud print queue ──► Local agent ──► Thermal printer
+                          │ ready
+                          ▼
+                 Served → Payment ledger → Day close → Reports
 ```
 
-## 4. Commercial Model Confirmation
-The product is sold as a software product/license. **NO subscription plans, monthly tier billing, or commercial feature gating** exist in the platform architecture.
+## Commercial model (locked)
+Licence sale plus optional commercial services (setup, customisation, additional outlet deployment, hardware, support, maintenance). These services
+are **not** SaaS membership plans and are **not** modelled in the software (ADR-002). USER_TENANT is an authorization relationship only.
+
+## Measures of success (proposed, for the Project Owner to confirm)
+- First restaurant runs full service (orders, kitchen, printing, payments, day close) on the platform (M14).
+- Zero cross-tenant data incidents (release gate G04 and ongoing monitoring).
+- Day close variance explained for 100% of days (reconciliation adoption).

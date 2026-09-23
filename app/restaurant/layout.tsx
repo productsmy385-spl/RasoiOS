@@ -1,23 +1,72 @@
-import { Sidebar } from "@/components/layout/Sidebar";
-import { PortalNavbar } from "@/components/layout/PortalNavbar";
-import { Footer } from "@/components/layout/Footer";
+import type { OperationalIndicator } from "@/components/layout/notifications";
+import { ConsoleFrame } from "@/components/layout/console-frame";
+import { getConsoleSession } from "@/lib/auth/context";
+import { requireTenantPage } from "@/lib/auth/guards";
+import { hasPermission } from "@/lib/auth/permissions";
+import { listActivePrinters, listAgents, listPrintJobs } from "@/lib/services/printing";
+import { SessionProvider } from "@/lib/ui/session-context";
 
-export default function RestaurantLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export const dynamic = "force-dynamic";
+
+/** How many failed jobs the header counts before it says "20+" rather than guessing a total. */
+const FAILED_JOB_SAMPLE = 20;
+
+/**
+ * Header operational indicators (frontend.md §3.2, S1-P16-T009): print agents that have stopped calling in, printers
+ * an agent last reported as offline, and print jobs that failed — all read from the caller's own tenant and only for
+ * roles holding `print_job:read` (security.md §3.3 row 46). Nothing here is estimated: "offline" means the agent's
+ * last call is older than the 90 s heartbeat window (ADR-007 §7) and a printer's health is its agent's last report.
+ * When there is nothing to report the list is empty and the header says so.
+ */
+async function operationalIndicators(ctx: Awaited<ReturnType<typeof requireTenantPage>>): Promise<OperationalIndicator[]> {
+  if (!hasPermission(ctx, "print_job:read")) return [];
+  const [printers, failedJobs, agents] = await Promise.all([
+    listActivePrinters(ctx),
+    listPrintJobs(ctx, { status: "FAILED" }, FAILED_JOB_SAMPLE),
+    listAgents(ctx),
+  ]);
+
+  const indicators: OperationalIndicator[] = [];
+  const offlineAgents = agents.filter((agent) => agent.status === "ACTIVE" && !agent.online);
+  if (offlineAgents.length > 0) {
+    indicators.push({
+      id: "agents-offline",
+      label: offlineAgents.length === 1 ? `${offlineAgents[0].name} is offline` : `${offlineAgents.length} agents offline`,
+      tone: "danger",
+      href: "/restaurant/printing",
+    });
+  }
+  const offline = printers.filter((printer) => printer.health === "OFFLINE");
+  if (offline.length > 0) {
+    indicators.push({
+      id: "printers-offline",
+      label: offline.length === 1 ? `${offline[0].name} is offline` : `${offline.length} printers are offline`,
+      tone: "danger",
+      href: "/restaurant/printing",
+    });
+  }
+  if (failedJobs.length > 0) {
+    const count = failedJobs.length === FAILED_JOB_SAMPLE ? `${FAILED_JOB_SAMPLE}+` : `${failedJobs.length}`;
+    indicators.push({
+      id: "print-jobs-failed",
+      label: failedJobs.length === 1 ? "1 print job failed" : `${count} print jobs failed`,
+      tone: "warning",
+      href: "/restaurant/printing",
+    });
+  }
+  return indicators;
+}
+
+// Tenant console (S1-P04-T004, S1-P05-T006, ADR-013 §3). Resolves the tenant context once: signed-out, uninvited,
+// suspended and multi-restaurant users are redirected before any tenant data renders. Pages still guard themselves.
+// ConsoleFrame renders the header-navigation shell, or the focus shell for the kitchen board (frontend.md §2).
+export default async function RestaurantLayout({ children }: { children: React.ReactNode }) {
+  const ctx = await requireTenantPage("restaurant:read");
+  const [session, indicators] = await Promise.all([getConsoleSession(ctx), operationalIndicators(ctx)]);
+
   return (
-    <div className="min-h-screen bg-[#1A1715] text-[#F3F4F6] flex">
-      {/* Sidebar */}
-      <Sidebar />
-
-      {/* Main Container */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <PortalNavbar />
-        <main className="flex-1 p-6 md:p-10 overflow-y-auto">{children}</main>
-        <Footer />
-      </div>
-    </div>
+    <SessionProvider value={session}>
+      <ConsoleFrame indicators={indicators}>{children}</ConsoleFrame>
+    </SessionProvider>
   );
 }

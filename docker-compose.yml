@@ -1,0 +1,24 @@
+# Local PostgreSQL for development (S1-P01-T009). Not used on Railway.
+# Major version matches CI (.github/workflows/ci.yml); both are aligned with Railway in S1-P02-T001.
+# Credentials are for a local, loopback-only database and match .env.example.
+services:
+  postgres:
+    image: postgres:16
+    container_name: rasoios-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: rasoios_db
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - rasoios-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d rasoios_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  rasoios-pgdata:

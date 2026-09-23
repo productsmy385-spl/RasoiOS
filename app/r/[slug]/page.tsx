@@ -1,107 +1,57 @@
-import { getPublicRestaurantBySlug, PublicRestaurantData } from "@/lib/services/public-restaurant";
-import { PublicMenuClient } from "@/components/public/public-menu-client";
-import { Utensils } from "lucide-react";
+import type { Metadata } from "next";
+import { PublicSitePage } from "@/components/public/site-shell";
+import { siteHomeHref, siteView } from "@/components/public/site-view";
+import { canonicalPublicUrl, resolvedTenantSlug } from "@/lib/tenancy/request";
+import { loadPublicSite, loadPublicSiteForMetadata } from "./load-site";
 
 interface PublicRestaurantPageProps {
   params: Promise<{ slug: string }>;
 }
 
+/**
+ * api.md §7 asks for ISR at 60 s. The host/path cross-check required by ADR-012 §1 reads request headers, which makes
+ * this route dynamic, so this bounds the cached data rather than a cached HTML page; `revalidatePath` on a website
+ * save (lib/services/website-theme.ts) still drops whatever is held.
+ */
+export const revalidate = 60;
+
+/**
+ * LD-PUB-01 public restaurant page (no authentication; S1-P09-T011/T012, ADR-012, ADR-013 §6).
+ *
+ * Reached two ways, both rendering the same page from the same loader:
+ * - `{slug}.<PUBLIC_ROOT_DOMAIN>` / `{slug}.localhost` — the middleware rewrites the request here and the slug in the
+ *   route segment *is* the resolved host label, re-validated and cross-checked against the internal header.
+ * - `/r/{slug}` on the apex host — the preview and QR form, which points canonically at the sub-domain when
+ *   `PUBLIC_ROOT_DOMAIN` is configured (§2). With it unset there is no canonical link and the path form is the address.
+ *
+ * Everything below the shell comes from this tenant's own rows: its theme, its sections in its own order, its copy,
+ * its images, its hours and its menu (S1-P09-T012).
+ */
+export async function generateMetadata({ params }: PublicRestaurantPageProps): Promise<Metadata> {
+  const site = await loadPublicSiteForMetadata((await params).slug);
+  if (site === null) return { title: "Restaurant not found" };
+
+  const canonical = canonicalPublicUrl(site.slug);
+  const title = site.seoTitle ?? site.restaurant.name;
+  const description = site.seoDescription ?? site.identity.tagline ?? site.restaurant.description ?? undefined;
+  const image = site.identity.heroImageUrl ?? site.restaurant.coverImageUrl;
+  return {
+    title,
+    description,
+    ...(site.identity.faviconUrl ? { icons: { icon: site.identity.faviconUrl } } : {}),
+    ...(canonical === null ? {} : { alternates: { canonical } }),
+    openGraph: {
+      title,
+      ...(description ? { description } : {}),
+      ...(canonical === null ? {} : { url: canonical }),
+      ...(image ? { images: [image] } : {}),
+      type: "website",
+    },
+  };
+}
+
 export default async function PublicRestaurantPage({ params }: PublicRestaurantPageProps) {
-  const { slug } = await params;
-
-  let restaurantData: PublicRestaurantData | null = null;
-  try {
-    restaurantData = await getPublicRestaurantBySlug(slug);
-  } catch (error) {
-    if (slug === "demo") {
-      restaurantData = {
-        tenantId: "demo-tenant-id",
-        tenantName: "Taj Mahal Palace Dining",
-        slug: "demo",
-        timezone: "Asia/Kolkata",
-        restaurant: {
-          name: "Taj Mahal Palace Dining",
-          logo: null,
-          description: "Authentic royal Indian cuisine cooked with traditional clay tandoors and aromatic spices.",
-          address: "12 Apollo Bunder, Colaba, Mumbai, MH 400001",
-          contactEmail: "info@tajpalacedining.com",
-          contactPhone: "+91 22 6665 3366",
-          openingHours: "11:30 AM – 11:00 PM Daily",
-        },
-        categories: [
-          {
-            id: "cat-1",
-            name: "Chef Specialties",
-            description: "Signature dishes prepared by our master chefs",
-            sortOrder: 1,
-            items: [
-              {
-                id: "item-1",
-                name: "Tandoori Murgh Makhani",
-                description: "Tender clay-oven grilled chicken in rich butter gravy",
-                imageUrl: "https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?auto=format&fit=crop&q=80&w=800",
-                price: "480.00",
-                taxRate: "5.00",
-                isAvailable: true,
-                variants: null,
-                addOns: null,
-              },
-              {
-                id: "item-2",
-                name: "Hyderabadi Dum Biryani",
-                description: "Fragrant basmati rice cooked on slow dum with aromatic spices",
-                imageUrl: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&q=80&w=800",
-                price: "520.00",
-                taxRate: "5.00",
-                isAvailable: true,
-                variants: null,
-                addOns: null,
-              },
-            ],
-          },
-          {
-            id: "cat-2",
-            name: "Artisanal Breads",
-            description: "Freshly baked in our traditional tandoor",
-            sortOrder: 2,
-            items: [
-              {
-                id: "item-3",
-                name: "Butter Garlic Naan",
-                description: "Leavened flatbread brushed with fresh garlic butter",
-                imageUrl: null,
-                price: "95.00",
-                taxRate: "5.00",
-                isAvailable: true,
-                variants: null,
-                addOns: null,
-              },
-            ],
-          },
-        ],
-      };
-    }
-  }
-
-  if (!restaurantData) {
-    return (
-      <main className="min-h-screen bg-[#1A1715] flex flex-col items-center justify-center p-6 text-center">
-        <div className="p-4 rounded-2xl bg-red-500/10 text-red-500 mb-4">
-          <Utensils className="w-10 h-10" />
-        </div>
-        <h1 className="font-display text-3xl font-bold text-[#FBF9F5]">Restaurant Not Found</h1>
-        <p className="text-gray-400 mt-2 max-w-md">
-          The requested restaurant slug &quot;{slug}&quot; could not be found or is currently inactive.
-        </p>
-      </main>
-    );
-  }
-
-  return (
-    <PublicMenuClient
-      slug={slug}
-      restaurant={restaurantData.restaurant}
-      categories={restaurantData.categories}
-    />
-  );
+  const site = await loadPublicSite((await params).slug);
+  const onTenantHost = (await resolvedTenantSlug()) !== null;
+  return <PublicSitePage view={siteView(site, { canonicalUrl: canonicalPublicUrl(site.slug), homeHref: siteHomeHref(site.slug, onTenantHost) })} />;
 }

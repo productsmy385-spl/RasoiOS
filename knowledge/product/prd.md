@@ -1,51 +1,35 @@
 ---
-title: "Product Requirements Document (PRD)"
-document_type: "PRD"
-project: "Restaurant SaaS Platform (RASOIOS)"
+title: "Product Requirements (Domain Reference)"
+document_type: "REFERENCE"
+project: "Restaurant SaaS Platform"
 project_owner: "Gopala Krishna"
-status: "APPROVED"
-version: "1.0"
+slice: "SLICE-01"
+status: "PROPOSED"
+version: "2.0"
 created: "2026-09-15"
 last_updated: "2026-09-15"
-author: "Gopala Krishna"
-review_owner: "Gopala Krishna"
-target_slice: "ALL"
-target_start_date: "2026-09-15"
-target_end_date: "2026-11-22"
-priority: "CRITICAL"
+owner: "Gopala Krishna (Project Owner)"
+planned_start: "2026-09-15"
+planned_finish: "Not scheduled — execution-order plan"
 dependencies: []
-related_documents: ["product-thesis.md", "business-rules.md"]
-related_decisions: ["ADR-001", "ADR-002", "ADR-003", "ADR-004"]
+related_documents: ["../implementation/slice-01/prd.md"]
+related_decisions: ["RASOIOS-ADR-002","RASOIOS-ADR-005"]
 ---
 
-# Product Requirements Document (PRD)
+# Product Requirements
+> **Canonical source:** [`../implementation/slice-01/prd.md`](../implementation/slice-01/prd.md). This domain file keeps only the durable summary for product requirements. Detail lives in the canonical
+> file and is not repeated here (knowledge/README.md §Document responsibilities).
 
-## 1. Requirement Registry
 
-| Req ID | Category | Requirement Description | Priority | Target Slice |
-|---|---|---|:---:|:---:|
-| **PR-001** | Multi-Tenancy | Server-side tenant context resolution; zero trust for client `tenantId`. | MUST | Slice 01 |
-| **PR-002** | Security | Role-Based Access Control (RBAC) supporting 6 distinct roles. | MUST | Slice 01 |
-| **PR-003** | Auth | Clerk Email OTP passwordless authentication. | MUST | Slice 02 |
-| **PR-004** | Branding | Public tenant website routing via slug/subdomain (`/r/[slug]`). | MUST | Slice 02 |
-| **PR-005** | PWA | Installable Progressive Web App manifest and responsive layout. | MUST | Slice 02 |
-| **PR-006** | Menu | Category management (create, edit, reorder, delete). | MUST | Slice 03 |
-| **PR-007** | Menu | Item pricing (Decimal NUMERIC persistence, variants, add-ons). | MUST | Slice 03 |
-| **PR-008** | Menu | Daily menu publishing and unpublishing controls. | MUST | Slice 03 |
-| **PR-009** | Orders | Server-side total calculation and price snapshotting on `OrderItem`. | MUST | Slice 04 |
-| **PR-010** | Orders | Order status state machine (`NEW` -> `ACCEPTED` -> `PREPARING` -> `READY` -> `COMPLETED`). | MUST | Slice 04 |
-| **PR-011** | Customer | Tenant-isolated customer phone registry. | MUST | Slice 04 |
-| **PR-012** | KOT | Sequential Kitchen Order Ticket numbering per tenant. | MUST | Slice 05 |
-| **PR-013** | Kitchen | Real-time Kitchen Display System (KDS) filtered by kitchen station. | MUST | Slice 05 |
-| **PR-014** | Printing | Database print job queue for ESC/POS thermal printers. | MUST | Slice 05 |
-| **PR-015** | Printing | Local thermal print agent API polling and execution feedback. | MUST | Slice 05 |
-| **PR-016** | Transactions| POS financial transactions (Cash, Card, UPI) with audit log. | MUST | Slice 06 |
-| **PR-017** | Reports | Tenant-isolated daily sales and category performance reports. | MUST | Slice 06 |
-| **PR-018** | Social | Social menu post preparation and status tracking. | SHOULD | Slice 07 |
-| **PR-019** | Hardening | End-to-end multi-tenant cross-boundary security audit. | MUST | Slice 08 |
-| **PR-020** | Observability| Structured JSON logging redacting passwords, tokens, and secrets. | MUST | Slice 08 |
+## Durable product commitments
 
-## 2. Release Acceptance Criteria
-- **Zero Cross-Tenant Leakage**: All 12 tenant isolation unit tests pass.
-- **Strict Monetary Precision**: Decimal persistence; zero floating-point money calculations.
-- **Production Build**: Clean Next.js compilation with zero TypeScript errors.
+- The product is a multi-tenant restaurant management platform, **sold as a software product/licence**. There are no subscription plans, tiers or recurring tenant billing (ADR-002).
+- Each tenant gets an isolated restaurant environment: website, dashboard, staff and roles, menu and daily menu, orders, customers, KOT and kitchen, printing, transactions, reports, social menu, audit and PWA.
+- Tenant A must never access Tenant B's private data.
+- Money is exact (Decimal/NUMERIC) and order history is snapshotted.
+- Nothing in the product shows a state that is not true (no fake printing, publishing, payments or health indicators).
+
+## Requirement ID scheme
+
+`REQ-<AREA>-NNN` with areas PLAT, TENANT, AUTH, RBAC, ADMIN, REST, DASH, WEB, DS, MENU, DMENU, ORDER, CUST, KOT, KITCH, PRINT, AGENT, TXN, RPT, SOC, PWA, TZ, AUDIT, SEC, NFR, OBS, OPS, TEST, FOUND.
+v1.0 IDs `PR-001…PR-020` are superseded by these IDs. The sources are cited per requirement in the canonical PRD.

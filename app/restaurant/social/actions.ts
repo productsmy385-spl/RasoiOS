@@ -1,63 +1,37 @@
 "use server";
 
-import { z } from "zod";
-import { SocialPostStatus } from "@prisma/client";
-import { getAuthenticatedSession } from "@/lib/auth/clerk";
-import { resolveTenantContext, requirePermission } from "@/lib/auth/tenant-context";
+import { requireTenant } from "@/lib/auth/guards";
+import { action } from "@/lib/http/action";
+import { createSocialPost, listSocialPosts, updateSocialPostStatus } from "@/lib/services/social";
+import { parseInput } from "@/lib/validation/core";
 import {
-  createSocialPost,
-  updateSocialPostStatus,
-  getTenantSocialPosts,
-  CreateSocialPostPayload,
-} from "@/lib/services/social";
-import { ValidationError } from "@/lib/errors";
+  createSocialPostSchema,
+  socialPostFiltersSchema,
+  updateSocialPostStatusSchema,
+  type CreateSocialPostInput,
+  type SocialPostFiltersInput,
+  type UpdateSocialPostStatusInput,
+} from "@/lib/validation/social";
 
-const CreateSocialPostSchema = z.object({
-  content: z.string().min(1, "Post content is required"),
-  imageUrl: z.string().url().optional().or(z.literal("")),
-  scheduledAt: z.string().optional(),
+// Social sharing (S1-P04-T007 interim; rebuilt in S1-P20). Every action requires `social:manage` (security.md §3.3 row 49).
+
+/** LD-SOC-01 posts of the caller's restaurant. */
+export const getSocialPostsAction = action(async (input: SocialPostFiltersInput = {}) => {
+  const ctx = await requireTenant("social:manage");
+  const filters = parseInput(socialPostFiltersSchema, input);
+  return listSocialPosts(ctx, filters);
 });
 
-export async function createSocialPostAction(
-  input: z.input<typeof CreateSocialPostSchema>,
-  requestedTenantId?: string
-) {
-  const session = await getAuthenticatedSession();
-  const context = resolveTenantContext(session, requestedTenantId);
-  requirePermission(context, "tenant:manage_own");
+/** SA-SOC-01 create a DRAFT; the share URL is built on the server. */
+export const createSocialPostAction = action(async (input: CreateSocialPostInput) => {
+  const ctx = await requireTenant("social:manage");
+  const data = parseInput(createSocialPostSchema, input);
+  return createSocialPost(ctx, data);
+});
 
-  const parsed = CreateSocialPostSchema.safeParse(input);
-  if (!parsed.success) {
-    throw new ValidationError(
-      "Invalid social post payload",
-      parsed.error.flatten().fieldErrors
-    );
-  }
-
-  const post = await createSocialPost(context.tenantId, parsed.data as CreateSocialPostPayload);
-  return { success: true, post };
-}
-
-export async function updateSocialPostStatusAction(
-  postId: string,
-  status: SocialPostStatus,
-  requestedTenantId?: string
-) {
-  const session = await getAuthenticatedSession();
-  const context = resolveTenantContext(session, requestedTenantId);
-  requirePermission(context, "tenant:manage_own");
-
-  const updated = await updateSocialPostStatus(context.tenantId, postId, status);
-  return { success: true, post: updated };
-}
-
-export async function getSocialPostsAction(
-  filters?: { status?: SocialPostStatus },
-  requestedTenantId?: string
-) {
-  const session = await getAuthenticatedSession();
-  const context = resolveTenantContext(session, requestedTenantId);
-
-  const posts = await getTenantSocialPosts(context.tenantId, filters);
-  return { success: true, posts };
-}
+/** SA-SOC-02…05 status changes (ready, back to draft, marked as posted by the signed-in user, archived). */
+export const updateSocialPostStatusAction = action(async (input: UpdateSocialPostStatusInput) => {
+  const ctx = await requireTenant("social:manage");
+  const data = parseInput(updateSocialPostStatusSchema, input);
+  return updateSocialPostStatus(ctx, data);
+});

@@ -1,47 +1,32 @@
 ---
-title: "User Personas Specification"
-document_type: "PERSONAS"
-project: "Restaurant SaaS Platform (RASOIOS)"
+title: "Personas (Domain Reference)"
+document_type: "REFERENCE"
+project: "Restaurant SaaS Platform"
 project_owner: "Gopala Krishna"
-status: "APPROVED"
-version: "1.0"
+slice: "SLICE-01"
+status: "PROPOSED"
+version: "2.0"
 created: "2026-09-15"
 last_updated: "2026-09-15"
-author: "Gopala Krishna"
-review_owner: "Gopala Krishna"
-target_slice: "ALL"
-target_start_date: "2026-09-15"
-target_end_date: "2026-11-22"
-priority: "HIGH"
+owner: "Gopala Krishna (Project Owner)"
+planned_start: "2026-09-15"
+planned_finish: "Not scheduled — execution-order plan"
 dependencies: []
-related_documents: ["prd.md", "../security/rbac.md"]
+related_documents: ["../implementation/slice-01/prd.md"]
 related_decisions: []
 ---
 
-# User Personas Specification
+# Personas
+> **Canonical source:** [`../implementation/slice-01/prd.md`](../implementation/slice-01/prd.md). This domain file keeps only the durable summary for personas (§3, PER-01…PER-07). Detail lives in the canonical
+> file and is not repeated here (knowledge/README.md §Document responsibilities).
 
-## 1. Platform Super Admin (`SUPER_ADMIN`)
-- **Name**: Platform Owner (Gopala Krishna / Authorized Admin)
-- **Goal**: Provision new restaurant tenants, inspect platform audit logs, activate/suspend restaurant accounts.
-- **Pain Point**: Preventing tenant data leakage and maintaining platform stability.
 
-## 2. Restaurant Owner / Admin (`TENANT_ADMIN`)
-- **Name**: Restaurant General Manager
-- **Goal**: Configure restaurant profile, branding, menu, staff accounts, roles, view financial reports.
-- **Pain Point**: Complex software setups and hidden software subscription price hikes.
-
-## 3. Operations Manager (`MANAGER`)
-- **Name**: Shift Manager
-- **Goal**: Publish daily menus, handle customer refunds, oversee POS cash drawers, manage staff shifts.
-
-## 4. Cashier (`CASHIER`)
-- **Name**: POS Cashier Operator
-- **Goal**: Rapidly enter dine-in/takeaway orders, collect payments (Cash/Card/UPI), print customer receipts.
-
-## 5. Kitchen Chef / Staff (`KITCHEN`)
-- **Name**: Head Chef / Line Cook
-- **Goal**: Clear KOT display cards on the kitchen tablet, update state from `PREPARING` to `READY`.
-
-## 6. Waiter (`WAITER`)
-- **Name**: Floor Staff
-- **Goal**: Take table orders on mobile/tablet, send items directly to kitchen KOT.
+| ID | Persona | Role |
+|---|---|---|
+| PER-01 | Platform owner | SUPER_ADMIN |
+| PER-02 | Restaurant owner / general manager | TENANT_ADMIN |
+| PER-03 | Shift manager | MANAGER |
+| PER-04 | Cashier | CASHIER |
+| PER-05 | Waiter | WAITER |
+| PER-06 | Kitchen staff | KITCHEN |
+| PER-07 | Diner | public |

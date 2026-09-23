@@ -1,32 +1,25 @@
 ---
-title: "Frontend Application Architecture Overview"
-document_type: "FRONTEND"
-project: "Restaurant SaaS Platform (RASOIOS)"
+title: "Frontend (Domain Reference)"
+document_type: "REFERENCE"
+project: "Restaurant SaaS Platform"
 project_owner: "Gopala Krishna"
-status: "APPROVED"
-version: "1.0"
+slice: "SLICE-01"
+status: "PROPOSED"
+version: "2.0"
 created: "2026-09-15"
 last_updated: "2026-09-15"
-author: "Gopala Krishna"
-review_owner: "Gopala Krishna"
-target_slice: "Slice 02"
-target_start_date: "2026-09-23"
-target_end_date: "2026-09-30"
-priority: "CRITICAL"
+owner: "Gopala Krishna (Project Owner)"
+planned_start: "2026-09-15"
+planned_finish: "Not scheduled — execution-order plan"
 dependencies: []
-related_documents: ["routing.md", "component-architecture.md"]
-related_decisions: ["ADR-001", "ADR-003"]
+related_documents: ["../implementation/slice-01/frontend.md","../implementation/slice-01/design.md"]
+related_decisions: ["RASOIOS-ADR-009"]
 ---
 
-# Frontend Application Architecture Overview
+# Frontend
+> **Canonical source:** [`../implementation/slice-01/frontend.md`](../implementation/slice-01/frontend.md). This domain file keeps only the durable summary for frontend architecture. Detail lives in the canonical
+> file and is not repeated here (knowledge/README.md §Document responsibilities).
 
-Next.js 15 App Router structure organized by domain responsibilities:
-- `app/r/[slug]`: Public restaurant branding and digital menu website.
-- `app/sign-in` & `app/sign-up`: Auth pages (Clerk Email OTP).
-- `app/admin`: Super Admin console (tenants management, platform audit).
-- `app/restaurant/dashboard`: Tenant portal overview.
-- `app/restaurant/menu`: Menu categories, items, and daily menu editor.
-- `app/restaurant/orders`: POS order entry and order status tracker.
-- `app/restaurant/kitchen`: Real-time Kitchen Display System (KDS).
-- `app/restaurant/transactions`: Financial transaction logs.
-- `app/restaurant/reports`: Daily operational reports.
+
+Principles FE-01…FE-09 (canonical §1): Server Components by default; UI checks are UX only; no fake data; all states designed; money from decimal strings;
+restaurant-timezone display; no new UI framework without an ADR; no tenant identity in client storage; polling per ADR-009.

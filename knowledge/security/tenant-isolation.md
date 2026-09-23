@@ -1,41 +1,25 @@
 ---
-title: "Tenant Isolation Security Specification"
-document_type: "TENANT_ISOLATION"
-project: "Restaurant SaaS Platform (RASOIOS)"
+title: "Tenant Isolation (Domain Reference)"
+document_type: "REFERENCE"
+project: "Restaurant SaaS Platform"
 project_owner: "Gopala Krishna"
-status: "APPROVED"
-version: "1.0"
+slice: "SLICE-01"
+status: "PROPOSED"
+version: "2.0"
 created: "2026-09-15"
 last_updated: "2026-09-15"
-author: "Gopala Krishna"
-review_owner: "Gopala Krishna"
-target_slice: "Slice 01"
-target_start_date: "2026-09-15"
-target_end_date: "2026-09-22"
-priority: "CRITICAL"
+owner: "Gopala Krishna (Project Owner)"
+planned_start: "2026-09-15"
+planned_finish: "Not scheduled — execution-order plan"
 dependencies: []
-related_documents: ["security.md", "../lib/auth/tenant-context.ts"]
-related_decisions: ["ADR-003"]
+related_documents: ["../implementation/slice-01/tenant-isolation.md","../implementation/slice-01/tenant-isolation-tests.md"]
+related_decisions: ["RASOIOS-ADR-003","RASOIOS-ADR-006","RASOIOS-ADR-008"]
 ---
 
-# Tenant Isolation Security Specification
+# Tenant Isolation
+> **Canonical source:** [`../implementation/slice-01/tenant-isolation.md`](../implementation/slice-01/tenant-isolation.md). This domain file keeps only the durable summary for the tenant boundary. Detail lives in the canonical
+> file and is not repeated here (knowledge/README.md §Document responsibilities).
 
-## Mandatory Execution Pattern
-```ts
-// EVERY protected Server Action or API Handler MUST follow this sequence:
-export async function getRestaurantOrdersAction(requestedTenantId?: string) {
-  // 1. Resolve Clerk session
-  const session = await getAuthenticatedSession();
-  
-  // 2. Resolve server-validated TenantContext
-  const context = resolveTenantContext(session, requestedTenantId);
-  
-  // 3. Check role permission
-  requirePermission(context, "order:create");
-  
-  // 4. Query PostgreSQL with MANDATORY tenantId filter
-  return prisma.order.findMany({
-    where: { tenantId: context.tenantId },
-  });
-}
-```
+
+The v1.0 example pattern accepted a `requestedTenantId` parameter and returned 403 for other-tenant resources. Both are superseded:
+server actions take **no** tenant parameter (ADR-006), and lookups return 404 for other tenants (ADR-008). The canonical pattern is in tenant-isolation.md §3.1.

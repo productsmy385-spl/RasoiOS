@@ -1,75 +1,90 @@
 ---
-title: "Canonical Product & Engineering Knowledge Base Specification"
+title: "Knowledge Base — Project Identity and Master Specification"
 document_type: "MASTER_SPEC"
-project: "Restaurant SaaS Platform (RASOIOS)"
+project: "Restaurant SaaS Platform"
 project_owner: "Gopala Krishna"
-status: "APPROVED"
-version: "1.0"
+slice: "SLICE-01"
+status: "PROPOSED"
+version: "2.0"
 created: "2026-09-15"
 last_updated: "2026-09-15"
-author: "Gopala Krishna"
-review_owner: "Gopala Krishna"
-target_slice: "ALL"
-target_start_date: "2026-09-15"
-target_end_date: "2026-11-22"
-priority: "CRITICAL"
+owner: "Gopala Krishna (Project Owner)"
+planned_start: "2026-09-15"
+planned_finish: "Not scheduled — execution-order plan"
 dependencies: []
-related_documents: ["README.md", "decisions.md"]
-related_decisions: ["RASOIOS-ADR-001", "RASOIOS-ADR-002", "RASOIOS-ADR-003", "RASOIOS-ADR-004"]
+related_documents: ["README.md", "decisions.md", "implementation/slice-01/README.md", "implementation/slice-01/baseline-audit.md"]
+related_decisions: ["RASOIOS-ADR-001", "RASOIOS-ADR-002", "RASOIOS-ADR-003", "RASOIOS-ADR-004", "RASOIOS-ADR-005"]
 ---
 
-# Master Product & Engineering Specification
+# Restaurant SaaS Platform — Master Specification
 
-## 1. Project Identity & Governance
-- **Project Name**: Restaurant SaaS Platform (RASOIOS)
-- **Product Category**: Restaurant Operations & Digital Management Platform
-- **Product Type**: Multi-Tenant Restaurant Software Platform
-- **Project Owner**: Gopala Krishna
-- **Current Date**: 2026-09-15
-- **Status**: ACTIVE DEVELOPMENT
+## 1. Identity
 
----
+| Item | Value |
+|---|---|
+| Project | Restaurant SaaS Platform (codename RASOIOS) |
+| Category | Multi-tenant restaurant management platform |
+| Project Owner | Gopala Krishna |
+| Repository | `github.com/productsmy385-spl/RasoiOS` [fact: `git remote -v`] |
+| Implementation plan | **SLICE-01 — Complete Restaurant SaaS Platform** (single slice, 29 phases) — `implementation/slice-01/` |
+| Current state (2026-09-15) | Baseline code exists at commit `18941a9` but does **not** meet SLICE-01 acceptance criteria (see `implementation/slice-01/baseline-audit.md`). All tasks PLANNED. |
+| Task tracking | `implementation/slice-01/tasks.md`; not connected to Linear |
 
-## 2. Commercial Model (LOCKED)
-- **Software Product / License Model**: The software is sold as a restaurant product/license.
-- **Strictly Prohibited**:
-  - Subscription tiers (Starter, Professional, Business, Enterprise).
-  - Recurring monthly SaaS tenant billing models.
-  - Commercial feature-gating flags based on payment tiers.
-- **`UserTenant` Entity Meaning**: Technical authorization and membership context. It does NOT represent a commercial subscription tier.
-- **Optional Commercial Services**: Hardware sales, custom development, initial setup/implementation, and additional outlet deployment contracts.
+## 2. Commercial model (locked — RASOIOS-ADR-002)
 
----
+- Sold to restaurant tenants as a **software product/licence**.
+- **No** Starter/Professional/Business/Enterprise plans, membership tiers, monthly or annual subscriptions, recurring tenant billing or plan-based feature gating.
+- Possible commercial services such as a one-time licence, setup, customisation, additional outlet deployment, hardware, support and maintenance are handled outside the software. They are **not** SaaS membership plans.
+- **USER_TENANT is a technical authorization relationship** (a person's role in a tenant). It is never a commercial subscription.
 
-## 3. Technology Stack Choice
-- **Application Framework**: Next.js 15 (App Router, Server Actions, TypeScript strict mode)
-- **Authentication**: Clerk (Email OTP authentication)
-- **Database**: PostgreSQL
-- **ORM**: Prisma ORM
-- **Deployment Target**: Railway
-- **PWA**: Progressive Web App installable shell
-- **Thermal Printing Architecture**: Cloud Print Job Queue + Local Restaurant Thermal Print Agent (polling USB/LAN ESC/POS printers)
+## 3. Technology stack (RASOIOS-ADR-001)
 
----
+| Concern | Choice |
+|---|---|
+| Framework | Next.js App Router (Server Components, Server Actions, Route Handlers), TypeScript strict |
+| Authentication | Clerk, Email OTP only, invite-only (ADR-006) |
+| Database / ORM | PostgreSQL, Prisma |
+| Styling | Tailwind CSS + CSS variables; Lucide icons |
+| Testing | Vitest (unit, static, integration on real PostgreSQL), Playwright (E2E, accessibility, responsive) |
+| Deployment | Railway |
+| Printing | PostgreSQL print queue + local print agent → USB/LAN ESC/POS printers (ADR-004, ADR-007) |
+| PWA | Web app manifest + service worker (no offline order taking) |
 
-## 4. Multi-Tenancy Security (HIGHEST PRIORITY)
-1. **Server-Side Context Resolution**: Tenant context is resolved exclusively from the authenticated session JWT mapped to PostgreSQL `UserTenant`.
-2. **Zero Client Trust**: Request body, query parameter, header, or URL `tenantId` values are NEVER trusted for authorization.
-3. **Database Scoping**: All tenant queries explicitly scope `where: { tenantId: context.tenantId }`.
+Brand tokens: Primary `#D97706` · Secondary `#FBF9F5` · Tertiary `#10B981` · Neutral `#1A1715` · Display font Playfair Display · UI font Plus Jakarta Sans.
 
----
+## 4. Multi-tenancy (highest priority)
 
-## 5. Implementation Timeline & Slice Map (2026-09-15 to 2026-11-22)
+1. Every tenant-owned record has `tenant_id`, and child records reference parents with composite keys, so cross-tenant references cannot exist (ADR-008).
+2. Tenant context is resolved **only on the server**, from the authenticated Clerk identity → local USER → ACTIVE USER_TENANT → ACTIVE TENANT (ADR-003, ADR-006).
+3. Tenant identifiers in URLs, bodies, query strings, headers or client state are never trusted.
+4. Other tenants' resources are indistinguishable from missing resources (404).
+5. Print agents, reports, caches, files, exports and public pages follow the same boundary (`implementation/slice-01/tenant-isolation.md`).
 
-| Slice ID | Name | Start Date | Target End Date | Status |
-|---|---|:---:|:---:|:---:|
-| **Slice 01** | Foundation + Multi-Tenant Core | 2026-09-15 | 2026-09-22 | **IMPLEMENTED** |
-| **Slice 02** | Restaurant Profile + Public Website + Design System + PWA | 2026-09-23 | 2026-09-30 | PLANNED |
-| **Slice 03** | Menu + Daily Menu | 2026-10-01 | 2026-10-08 | PLANNED |
-| **Slice 04** | Orders + Customers | 2026-10-09 | 2026-10-18 | PLANNED |
-| **Slice 05** | Kitchen + KOT + Printing | 2026-10-19 | 2026-10-28 | PLANNED |
-| **Slice 06** | Transactions + Reports | 2026-10-29 | 2026-11-05 | PLANNED |
-| **Slice 07** | Social Menu + Sharing | 2026-11-06 | 2026-11-12 | PLANNED |
-| **Slice 08** | Production Hardening + Observability + Release | 2026-11-13 | 2026-11-22 | PLANNED |
+## 5. Implementation structure
 
-*Note: All dates are calculated starting from 2026-09-15 and marked as ESTIMATED where future team capacity varies.*
+```
+Restaurant SaaS Platform
+└── SLICE-01 — Complete Restaurant SaaS Platform
+    ├── P01 Project Foundation          ├── P16 Print Queue
+    ├── P02 Database Foundation         ├── P17 Local Print Agent
+    ├── P03 Authentication              ├── P18 Transactions
+    ├── P04 Multi-Tenant Authorization  ├── P19 Reports
+    ├── P05 RBAC                        ├── P20 Social Menu + Sharing
+    ├── P06 Super Admin                 ├── P21 PWA
+    ├── P07 Restaurant Management       ├── P22 Timezone + Live Clock
+    ├── P08 Design System + Frontend    ├── P23 Audit Logging
+    ├── P09 Public Restaurant Website   ├── P24 Security Hardening
+    ├── P10 Menu Management             ├── P25 Testing + QA
+    ├── P11 Daily Menu                  ├── P26 Observability
+    ├── P12 Orders                      ├── P27 Railway Deployment
+    ├── P13 Customers                   ├── P28 Production Readiness
+    ├── P14 KOT                         └── P29 Final Release
+    └── P15 Kitchen Management
+```
+
+Tasks are identified `S1-Pxx-Tnnn` and executed in the order given in `implementation/slice-01/tasks.md`.
+
+## 6. Superseded content
+
+Knowledge Base v1.0 (also dated 2026-09-15) described eight slices, with Slice 01 IMPLEMENTED and Slices 02–08 variously PLANNED or IMPLEMENTED, on a
+2026-09-15 → 2026-11-22 timeline. The baseline audit did not substantiate those statuses. That structure is superseded by RASOIOS-ADR-005.

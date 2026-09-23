@@ -1,77 +1,26 @@
-import { prisma } from "@/lib/db/prisma";
 import { notFound } from "next/navigation";
+import { requireTenantPage } from "@/lib/auth/guards";
+import { getReceipt } from "@/lib/data/receipts";
+import { parseParamOrNotFound, uuidParam } from "@/lib/validation/core";
 import { PrintReceiptClient } from "./print-receipt-client";
+
+export const dynamic = "force-dynamic";
 
 interface ReceiptPageProps {
   params: Promise<{ orderId: string }>;
 }
 
+/**
+ * Printable receipt (S1-P04-T008 closes BA-02; api.md LD-RCPT-01). Permission first, then a tenant-scoped lookup:
+ * a malformed id, a missing order and another tenant's order all render the same not-found page.
+ */
 export default async function PrintableReceiptPage({ params }: ReceiptPageProps) {
-  const { orderId } = await params;
+  const ctx = await requireTenantPage("transaction:read");
+  const { orderId: rawOrderId } = await params;
+  const orderId = parseParamOrNotFound(uuidParam, rawOrderId);
 
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
-    include: {
-      tenant: {
-        include: {
-          restaurants: {
-            take: 1,
-          },
-        },
-      },
-      customer: true,
-      items: true,
-      transactions: {
-        where: { status: "SUCCESS" },
-      },
-    },
-  });
+  const receipt = await getReceipt(ctx, orderId);
+  if (!receipt) notFound();
 
-  if (!order) {
-    notFound();
-  }
-
-  const restaurant = order.tenant.restaurants[0] || {
-    name: order.tenant.name,
-    address: null,
-    contactPhone: null,
-    contactEmail: null,
-  };
-
-  const receiptData = {
-    orderNumber: order.orderNumber,
-    createdAt: order.createdAt.toISOString(),
-    orderType: order.orderType,
-    tableNumber: order.tableNumber,
-    notes: order.notes,
-    totalAmount: order.totalAmount.toString(),
-    restaurant: {
-      name: restaurant.name,
-      address: restaurant.address,
-      contactPhone: restaurant.contactPhone,
-      contactEmail: restaurant.contactEmail,
-    },
-    customer: order.customer
-      ? {
-          name: order.customer.name,
-          phone: order.customer.phone,
-        }
-      : null,
-    items: order.items.map((item) => ({
-      id: item.id,
-      name: item.itemNameSnapshot,
-      price: item.priceSnapshot.toString(),
-      taxRate: item.taxRateSnapshot.toString(),
-      quantity: item.quantity,
-    })),
-    transactions: order.transactions.map((tx) => ({
-      id: tx.id,
-      paymentMethod: tx.paymentMethod,
-      amount: tx.amount.toString(),
-      reference: tx.referenceId,
-      createdAt: tx.createdAt.toISOString(),
-    })),
-  };
-
-  return <PrintReceiptClient data={receiptData} />;
+  return <PrintReceiptClient data={receipt} />;
 }

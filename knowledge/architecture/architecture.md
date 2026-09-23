@@ -1,38 +1,34 @@
 ---
-title: "System Architecture Specification"
-document_type: "ARCHITECTURE"
-project: "Restaurant SaaS Platform (RASOIOS)"
+title: "Architecture (Domain Reference)"
+document_type: "REFERENCE"
+project: "Restaurant SaaS Platform"
 project_owner: "Gopala Krishna"
-status: "APPROVED"
-version: "1.0"
+slice: "SLICE-01"
+status: "PROPOSED"
+version: "2.0"
 created: "2026-09-15"
 last_updated: "2026-09-15"
-author: "Gopala Krishna"
-review_owner: "Gopala Krishna"
-target_slice: "ALL"
-target_start_date: "2026-09-15"
-target_end_date: "2026-11-22"
-priority: "CRITICAL"
+owner: "Gopala Krishna (Project Owner)"
+planned_start: "2026-09-15"
+planned_finish: "Not scheduled — execution-order plan"
 dependencies: []
-related_documents: ["system-context.md", "data-flow.md"]
-related_decisions: ["ADR-001", "ADR-003", "ADR-004"]
+related_documents: ["../implementation/slice-01/architecture.md","../implementation/slice-01/tenant-isolation.md"]
+related_decisions: ["RASOIOS-ADR-001","RASOIOS-ADR-003","RASOIOS-ADR-004","RASOIOS-ADR-006","RASOIOS-ADR-007","RASOIOS-ADR-008","RASOIOS-ADR-009","RASOIOS-ADR-010","RASOIOS-ADR-011"]
 ---
 
-# System Architecture Specification
+# Architecture
+> **Canonical source:** [`../implementation/slice-01/architecture.md`](../implementation/slice-01/architecture.md). This domain file keeps only the durable summary for system architecture. Detail lives in the canonical
+> file and is not repeated here (knowledge/README.md §Document responsibilities).
 
-## 1. Core Architecture Topology
 
-```mermaid
-graph TD
-    Client[Browser / PWA / Tablet] -->|HTTPS| NextServer[Next.js App Router (Railway)]
-    NextServer -->|Clerk Middleware| Auth[Clerk Auth & Email OTP]
-    NextServer -->|Server-Side Auth Scoping| Context[Tenant Context Resolver]
-    Context -->|Prisma Client| DB[(PostgreSQL Database)]
-    PrintAgent[Local Print Agent] -->|Poll TLS API| NextServer
-    PrintAgent -->|ESC/POS| ThermalPrinter[Local Thermal Receipt Printer]
-```
+## Durable architectural principles
 
-## 2. Server Layer Architecture
-- **App Router (`app/`)**: Server Components by default. Server Actions handle mutations with mandatory `resolveTenantContext()` execution.
-- **Service Layer (`services/`)**: Enforces domain business logic (totals calculation, order state transitions, KOT generation).
-- **Data Access Layer (`lib/db/prisma.ts`)**: Prisma ORM client configured with composite tenant indexes.
+1. **One Next.js application.** App Router with Server Components, Server Actions and Route Handlers, on Railway with PostgreSQL via Prisma and Clerk for identity (ADR-001).
+2. **Server-first.** Business logic, data access and authorization run on the server.
+3. **Layering.** `app/**` → `lib/services` → `lib/data`, the only Prisma access for tenant data (ADR-008) → PostgreSQL. Composite FKs back this up at the database level.
+4. **Tenant context is derived, never supplied** (ADR-003, ADR-006).
+5. **Printing is pull-based.** A local agent authenticates with a per-device token and leases jobs from a PostgreSQL queue (ADR-004, ADR-007).
+6. **Operational screens poll with cursors.** No extra realtime infrastructure (ADR-009).
+7. **No additional runtime infrastructure** without an ADR (rate limits and queues live in PostgreSQL — ADR-011).
+
+v1.0 described `services/` and `repositories/` directories that do not exist. The actual and target layering is `lib/services` and `lib/data` (baseline-audit §3).

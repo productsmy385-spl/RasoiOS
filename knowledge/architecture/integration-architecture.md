@@ -1,28 +1,32 @@
 ---
-title: "Integration Architecture & Thermal Print Agent"
-document_type: "INTEGRATION"
-project: "Restaurant SaaS Platform (RASOIOS)"
+title: "Integration Architecture"
+document_type: "REFERENCE"
+project: "Restaurant SaaS Platform"
 project_owner: "Gopala Krishna"
-status: "APPROVED"
-version: "1.0"
+slice: "SLICE-01"
+status: "PROPOSED"
+version: "2.0"
 created: "2026-09-15"
 last_updated: "2026-09-15"
-author: "Gopala Krishna"
-review_owner: "Gopala Krishna"
-target_slice: "Slice 05"
-target_start_date: "2026-10-19"
-target_end_date: "2026-10-28"
-priority: "HIGH"
+owner: "Gopala Krishna (Project Owner)"
+planned_start: "2026-09-15"
+planned_finish: "Not scheduled — execution-order plan"
 dependencies: []
-related_documents: ["architecture.md"]
-related_decisions: ["ADR-004"]
+related_documents: ["../implementation/slice-01/architecture.md","../implementation/slice-01/api.md","../decisions/RASOIOS-ADR-007.md"]
+related_decisions: ["RASOIOS-ADR-004","RASOIOS-ADR-007","RASOIOS-ADR-011"]
 ---
 
-# Integration Architecture & Thermal Print Agent
+# Integration Architecture
+> **Canonical source:** [`../implementation/slice-01/architecture.md`](../implementation/slice-01/architecture.md). This domain file keeps only the durable summary for integrations (§2, §6). Detail lives in the canonical
+> file and is not repeated here (knowledge/README.md §Document responsibilities).
 
-## Local Thermal Print Agent Workflow
-1. Cloud server creates `PrintJob` in database (`status: PENDING`, `jobType: KOT`, `tenantId: "..."`).
-2. Local Print Agent polls `/api/print-jobs/poll` every 3 seconds passing `Bearer <AGENT_API_TOKEN>`.
-3. Server resolves agent's tenant ID and returns pending jobs belonging strictly to that tenant.
-4. Agent renders ESC/POS byte sequence and transmits to USB (`/dev/usb/lp0` or `COM3`) or LAN IP (`192.168.1.200:9100`).
-5. Agent posts status update (`PRINTED` or `FAILED`) back to cloud server.
+
+| Integration | Mechanism | Authentication | Failure behaviour |
+|---|---|---|---|
+| Clerk sign-in | Clerk components + `auth()` | Clerk session | Error page with 503 for infrastructure failure (never "signed out") |
+| Clerk invitations / session revocation | Backend API from `lib/auth/clerk-admin.ts` | `CLERK_SECRET_KEY` | Typed error; membership stays INVITED with resend |
+| Clerk webhooks | `POST /api/webhooks/clerk` | Svix signature | 400 on invalid signature; idempotent handlers |
+| Print agent | `/api/v1/print-agent/{pair,heartbeat,config,jobs/claim,jobs/:id/ack}` | Bearer token (SHA-256 at rest) | Lease expiry re-queues; retries with backoff; FAILED visible |
+
+The v1.0 description "polls /api/print-jobs/poll … passing Bearer <AGENT_API_TOKEN>" did not match the code: that route took `tenantId` from the query and had no
+token (BA-01). It is replaced by RASOIOS-ADR-007.

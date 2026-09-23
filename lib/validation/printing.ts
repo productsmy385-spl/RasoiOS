@@ -1,0 +1,197 @@
+/**
+ * Printing and print-agent inputs (S1-P16-T004/T005; api.md LD-PRN-01, RH-PRN-01, SA-PRN-01…06, SA-AGT-01/02,
+ * RH-AGT-01…05). Every schema is strict: a `tenantId`, `payload`, `jobType` or `status` sent by a client or an agent
+ * is rejected with 422 (SC-VAL-01, SC-TEN-01, ADR-007 §1).
+ *
+ * LAN addresses are restricted to literal private IPv4 addresses (SC-PRINT-06). The cloud never opens a connection to
+ * a printer — the local agent does — but a public address or a hostname stored here would turn the console into a
+ * request-forgery primitive the moment anything followed it, so it is refused at the boundary.
+ */
+import { PrintJobStatus, PrintJobType, PrinterConnection, PrinterHealth, PrinterPurpose } from "@prisma/client";
+import { z } from "zod";
+import { boundedText, optionalText, strictObject, uuidParam } from "./core";
+
+// ─── Printer addresses (SC-PRINT-06) ───
+
+const IPV4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+
+/** RFC 1918 private ranges only. Loopback, link-local, multicast, `0.0.0.0` and every public address are refused. */
+export function isPrivateIpv4(value: string): boolean {
+  const match = IPV4.exec(value);
+  if (!match) return false;
+  const parts = match.slice(1).map((part) => Number(part));
+  if (parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false;
+  if (match.slice(1).some((part) => part.length > 1 && part.startsWith("0"))) return false;
+  const [a, b] = parts;
+  if (a === 10) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+  return false;
+}
+
+export function isValidPort(value: string): boolean {
+  if (!/^\d{1,5}$/.test(value)) return false;
+  const port = Number(value);
+  return port >= 1 && port <= 65535;
+}
+
+/** `192.168.1.50:9100`, `10.0.0.7` — a private IPv4 with an optional port. Hostnames and `localhost` are refused. */
+export function isPrivateLanAddress(value: string): boolean {
+  const [host, port, ...rest] = value.split(":");
+  if (rest.length > 0) return false;
+  if (!isPrivateIpv4(host ?? "")) return false;
+  return port === undefined || isValidPort(port);
+}
+
+/**
+ * A USB device or OS print-queue name, e.g. `USB001` or `Star TSP100 (copy 1)`. Printable ASCII only, with no shell
+ * metacharacters and no control characters — the agent passes this string to an OS printing call.
+ */
+export const USB_ADDRESS_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 ._:#/\\()+-]{0,63}$/;
+
+export const LAN_ADDRESS_MESSAGE = "Use a private LAN address such as 192.168.1.50:9100 (10.x, 172.16–31.x or 192.168.x only).";
+export const USB_ADDRESS_MESSAGE = "Use the USB device or print-queue name, e.g. USB001.";
+
+export function connectionAddressIssue(connectionType: PrinterConnection, address: string): string | null {
+  if (connectionType === PrinterConnection.LAN) return isPrivateLanAddress(address) ? null : LAN_ADDRESS_MESSAGE;
+  return USB_ADDRESS_PATTERN.test(address) ? null : USB_ADDRESS_MESSAGE;
+}
+
+// ─── Console reads (LD-PRN-01, RH-PRN-01) ───
+
+export const printJobFiltersSchema = strictObject({
+  status: z.nativeEnum(PrintJobStatus).optional(),
+  jobType: z.nativeEnum(PrintJobType).optional(),
+});
+export type PrintJobFiltersInput = z.input<typeof printJobFiltersSchema>;
+
+/** RH-PRN-01 `GET /api/v1/print-jobs?since=&status=&jobType=` — `since` is the previous response's `serverTime`. */
+export const printJobPollSchema = strictObject({
+  since: z.string().datetime({ offset: true }).optional(),
+  status: z.nativeEnum(PrintJobStatus).optional(),
+  jobType: z.nativeEnum(PrintJobType).optional(),
+});
+export type PrintJobPollInput = z.input<typeof printJobPollSchema>;
+
+// ─── Printers (SA-PRN-01…04) ───
+
+const paperWidthField = z.union([z.literal(58), z.literal(80)], { errorMap: () => ({ message: "Choose 58 mm or 80 mm" }) });
+const addressField = boundedText(255, { label: "Connection address" });
+
+export const createPrinterSchema = strictObject({
+  name: boundedText(60, { label: "Printer name" }),
+  purpose: z.nativeEnum(PrinterPurpose),
+  connectionType: z.nativeEnum(PrinterConnection),
+  connectionAddress: addressField,
+  paperWidthMm: paperWidthField,
+  kitchenSectionId: uuidParam.nullish().transform((value) => value ?? null),
+  printAgentId: uuidParam.nullish().transform((value) => value ?? null),
+}).superRefine((value, ctx) => {
+  const issue = connectionAddressIssue(value.connectionType, value.connectionAddress);
+  if (issue) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["connectionAddress"], message: issue });
+});
+export type CreatePrinterInput = z.input<typeof createPrinterSchema>;
+
+export const updatePrinterSchema = strictObject({
+  printerId: uuidParam,
+  name: boundedText(60, { label: "Printer name" }).optional(),
+  purpose: z.nativeEnum(PrinterPurpose).optional(),
+  connectionType: z.nativeEnum(PrinterConnection).optional(),
+  connectionAddress: addressField.optional(),
+  paperWidthMm: paperWidthField.optional(),
+  // `null` clears the assignment, an omitted key leaves it untouched — so a partial edit cannot silently unassign a
+  // station or an agent.
+  kitchenSectionId: uuidParam.nullable().optional(),
+  printAgentId: uuidParam.nullable().optional(),
+}).superRefine((value, ctx) => {
+  if (value.connectionAddress === undefined) return;
+  if (value.connectionType === undefined) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["connectionType"], message: "Send the connection type with a new address." });
+    return;
+  }
+  const issue = connectionAddressIssue(value.connectionType, value.connectionAddress);
+  if (issue) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["connectionAddress"], message: issue });
+});
+export type UpdatePrinterInput = z.input<typeof updatePrinterSchema>;
+
+export const printerIdSchema = strictObject({ printerId: uuidParam });
+export type PrinterIdInput = z.input<typeof printerIdSchema>;
+
+/** SA-PRN-04 — the server builds the TEST payload; the client only picks one of its tenant's printers. */
+export const testPrintSchema = printerIdSchema;
+export type TestPrintInput = z.input<typeof testPrintSchema>;
+
+// ─── Jobs (SA-PRN-05, SA-PRN-06, SA-KOT-02) ───
+
+export const retryPrintJobSchema = strictObject({ jobId: uuidParam });
+export type RetryPrintJobInput = z.input<typeof retryPrintJobSchema>;
+
+export const printReceiptSchema = strictObject({ orderId: uuidParam });
+export type PrintReceiptInput = z.input<typeof printReceiptSchema>;
+
+export const reprintKotSchema = strictObject({ kotId: uuidParam });
+export type ReprintKotInput = z.input<typeof reprintKotSchema>;
+
+// ─── Agents (SA-AGT-01, SA-AGT-02) ───
+
+/** 8 characters from a 32-symbol alphabet without the ambiguous I, O, 0 and 1 (ADR-007 §1, SC-PRINT-02). */
+export const PAIRING_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+export const PAIRING_CODE_LENGTH = 8;
+const PAIRING_CODE_PATTERN = /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$/;
+
+export const createPrintAgentSchema = strictObject({ name: boundedText(60, { label: "Agent name" }) });
+export type CreatePrintAgentInput = z.input<typeof createPrintAgentSchema>;
+
+export const printAgentIdSchema = strictObject({ agentId: uuidParam });
+export type PrintAgentIdInput = z.input<typeof printAgentIdSchema>;
+
+// ─── Agent API (RH-AGT-01…05) ───
+
+/** RH-AGT-01 pair. The code is normalised before hashing so a technician may type it in lower case. */
+export const agentPairSchema = strictObject({
+  pairingCode: z
+    .string()
+    .trim()
+    .transform((value) => value.replace(/[\s-]/g, "").toUpperCase())
+    .pipe(z.string().regex(PAIRING_CODE_PATTERN, "Invalid pairing code")),
+  agentVersion: boundedText(32, { label: "Agent version" }),
+  osInfo: boundedText(64, { label: "OS info" }),
+});
+export type AgentPairInput = z.input<typeof agentPairSchema>;
+
+/** RH-AGT-02 heartbeat. Printer ids that are not assigned to the calling agent are ignored and logged, never applied. */
+export const agentHeartbeatSchema = strictObject({
+  agentVersion: boundedText(32, { label: "Agent version" }).optional(),
+  printers: z
+    .array(
+      strictObject({
+        printerId: uuidParam,
+        health: z.nativeEnum(PrinterHealth),
+        detail: optionalText(120, "Detail"),
+      }),
+    )
+    .max(50)
+    .default([]),
+});
+export type AgentHeartbeatInput = z.input<typeof agentHeartbeatSchema>;
+
+/** RH-AGT-03 claim. */
+export const agentClaimSchema = strictObject({ max: z.number().int().min(1).max(10).default(1) });
+export type AgentClaimInput = z.input<typeof agentClaimSchema>;
+
+/** RH-AGT-04 acknowledge. `PRINTED` here is the only way a job becomes PRINTED (ADR-007 §4, BR-PRINT-01). */
+export const agentAckSchema = strictObject({
+  claimToken: uuidParam,
+  result: z.enum(["PRINTED", "FAILED"]),
+  errorCode: z
+    .string()
+    .trim()
+    .max(40)
+    .regex(/^[A-Z][A-Z0-9_]*$/, "Use an UPPER_SNAKE_CASE error code")
+    .optional(),
+  errorMessage: optionalText(500, "Error message"),
+});
+export type AgentAckInput = z.input<typeof agentAckSchema>;
+
+export const agentJobParamsSchema = strictObject({ jobId: uuidParam });
+export type AgentJobParamsInput = z.input<typeof agentJobParamsSchema>;

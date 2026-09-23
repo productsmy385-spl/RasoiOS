@@ -21,12 +21,17 @@ This repository is governed by the **Knowledge Base** in `knowledge/`. The Knowl
 - **ORM**: Prisma ORM
 - **Deployment**: Railway
 - **Styling**: Tailwind CSS, CSS Custom Variables
-- **Brand Tokens**:
-  - Primary: Amber `#D97706`
-  - Secondary / Canvas: Warm Light `#FBF9F5` / Dark Premium `#1A1715`
-  - Tertiary / Success: Emerald `#10B981`
-  - Display Font: Playfair Display
-  - UI / Body Font: Plus Jakarta Sans
+- **Brand Tokens** (v2 — RASOIOS-ADR-013, 2026-09-23; replaces the amber/emerald v1 palette):
+  - Primary: `#4FE012` · Secondary: `#201EEB` · Tertiary / Danger: `#F80E23` · Neutral accent: `#0CFFC4`
+  - Each hue is a 50–900 tonal scale; raw hues are accents only, never page-wide fills. Surfaces are near-black and
+    desaturated. Every colour is a semantic token; WCAG 2.1 AA contrast is enforced by tests.
+  - Visual language: vibrant glassmorphism in three levels (navigation, cards/panels, overlays) — never nested,
+    never behind long text, always with an opaque fallback.
+  - Display Font: Playfair Display · UI / Body Font: Plus Jakarta Sans
+- **Navigation**: glass header navigation on desktop for both consoles — **no persistent desktop sidebar** — and a
+  glass bottom bar below 768 px (ADR-013 §3).
+- **Tenant websites**: each tenant is served at `{slug}.<PUBLIC_ROOT_DOMAIN>` (`{slug}.localhost:3000` in dev), with
+  `/r/{slug}` kept as a fallback; tenants theme their own public site only (ADR-012, ADR-013 §6).
 - **Testing**: Vitest (Unit/Auth/Tenant Isolation), Playwright (E2E)
 
 ---
@@ -43,6 +48,8 @@ npm run test:unit     # Run unit tests only
 npm run test:e2e      # Run E2E tests (Playwright)
 npm run prisma:gen    # Generate Prisma Client
 npm run prisma:migrate # Run Prisma migrations
+npm run db:local      # Run embedded PostgreSQL 16 locally (no Docker needed)
+npm run db:seed       # Seed the local database
 ```
 
 ---

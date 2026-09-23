@@ -29,3 +29,7 @@ Tenant context is resolved strictly server-side by mapping the Clerk authenticat
 ## Consequences
 - Guaranteed cross-tenant data isolation.
 - Mandates server-side authorization checks on every protected route and API handler.
+
+## Subsequent decisions
+
+- Implemented by RASOIOS-ADR-006 (identity and active tenant resolution) and RASOIOS-ADR-008 (tenant-scoped data access), both APPROVED 2026-09-15 (gate S1-P01-T010). This decision remains in force.

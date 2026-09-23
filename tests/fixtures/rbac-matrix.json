@@ -1,0 +1,652 @@
+[
+  {
+    "row": 1,
+    "permission": "platform:tenant:read",
+    "allow": {
+      "SUPER_ADMIN": "allow",
+      "TENANT_ADMIN": "deny",
+      "MANAGER": "deny",
+      "CASHIER": "deny",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-101"
+  },
+  {
+    "row": 2,
+    "permission": "platform:tenant:create",
+    "allow": {
+      "SUPER_ADMIN": "allow",
+      "TENANT_ADMIN": "deny",
+      "MANAGER": "deny",
+      "CASHIER": "deny",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-102"
+  },
+  {
+    "row": 3,
+    "permission": "platform:tenant:update",
+    "allow": {
+      "SUPER_ADMIN": "allow",
+      "TENANT_ADMIN": "deny",
+      "MANAGER": "deny",
+      "CASHIER": "deny",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-103"
+  },
+  {
+    "row": 4,
+    "permission": "platform:tenant:suspend",
+    "allow": {
+      "SUPER_ADMIN": "allow",
+      "TENANT_ADMIN": "deny",
+      "MANAGER": "deny",
+      "CASHIER": "deny",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-104"
+  },
+  {
+    "row": 5,
+    "permission": "platform:tenant:reactivate",
+    "allow": {
+      "SUPER_ADMIN": "allow",
+      "TENANT_ADMIN": "deny",
+      "MANAGER": "deny",
+      "CASHIER": "deny",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-105"
+  },
+  {
+    "row": 6,
+    "permission": "platform:tenant_admin:invite",
+    "allow": {
+      "SUPER_ADMIN": "allow",
+      "TENANT_ADMIN": "deny",
+      "MANAGER": "deny",
+      "CASHIER": "deny",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-106"
+  },
+  {
+    "row": 7,
+    "permission": "platform:audit:read",
+    "allow": {
+      "SUPER_ADMIN": "allow",
+      "TENANT_ADMIN": "deny",
+      "MANAGER": "deny",
+      "CASHIER": "deny",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-107"
+  },
+  {
+    "row": 8,
+    "permission": "dashboard:read",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "deny",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-108"
+  },
+  {
+    "row": 9,
+    "permission": "restaurant:read",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "allow",
+      "KITCHEN": "allow",
+      "WAITER": "allow"
+    },
+    "test": "TC-RBAC-109"
+  },
+  {
+    "row": 10,
+    "permission": "restaurant:update",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "deny",
+      "CASHIER": "deny",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-110"
+  },
+  {
+    "row": 11,
+    "permission": "restaurant:settings:update",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "deny",
+      "CASHIER": "deny",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-111"
+  },
+  {
+    "row": 12,
+    "permission": "website:update",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "deny",
+      "CASHIER": "deny",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-112"
+  },
+  {
+    "row": 13,
+    "permission": "kitchen_section:manage",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "deny",
+      "CASHIER": "deny",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-113"
+  },
+  {
+    "row": 14,
+    "permission": "staff:read",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "deny",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-114"
+  },
+  {
+    "row": 15,
+    "permission": "staff:invite",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "restricted",
+      "CASHIER": "deny",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-115"
+  },
+  {
+    "row": 16,
+    "permission": "staff:update_role",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "restricted",
+      "CASHIER": "deny",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-116"
+  },
+  {
+    "row": 17,
+    "permission": "staff:deactivate",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "restricted",
+      "CASHIER": "deny",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-117"
+  },
+  {
+    "row": 18,
+    "permission": "menu:read",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "allow",
+      "KITCHEN": "allow",
+      "WAITER": "allow"
+    },
+    "test": "TC-RBAC-118"
+  },
+  {
+    "row": 19,
+    "permission": "menu:manage",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "deny",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-119"
+  },
+  {
+    "row": 20,
+    "permission": "menu:availability:update",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "deny",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-120"
+  },
+  {
+    "row": 21,
+    "permission": "daily_menu:read",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "allow",
+      "KITCHEN": "allow",
+      "WAITER": "allow"
+    },
+    "test": "TC-RBAC-121"
+  },
+  {
+    "row": 22,
+    "permission": "daily_menu:manage",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "deny",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-122"
+  },
+  {
+    "row": 23,
+    "permission": "order:read",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "allow",
+      "KITCHEN": "restricted",
+      "WAITER": "allow"
+    },
+    "test": "TC-RBAC-123"
+  },
+  {
+    "row": 24,
+    "permission": "order:create",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "allow",
+      "KITCHEN": "deny",
+      "WAITER": "allow"
+    },
+    "test": "TC-RBAC-124"
+  },
+  {
+    "row": 25,
+    "permission": "order:add_items",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "allow",
+      "KITCHEN": "deny",
+      "WAITER": "allow"
+    },
+    "test": "TC-RBAC-125"
+  },
+  {
+    "row": 26,
+    "permission": "order:accept",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "allow",
+      "KITCHEN": "deny",
+      "WAITER": "allow"
+    },
+    "test": "TC-RBAC-126"
+  },
+  {
+    "row": 27,
+    "permission": "order:kitchen_update",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "deny",
+      "KITCHEN": "allow",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-127"
+  },
+  {
+    "row": 28,
+    "permission": "order:complete",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "allow",
+      "KITCHEN": "deny",
+      "WAITER": "allow"
+    },
+    "test": "TC-RBAC-128"
+  },
+  {
+    "row": 29,
+    "permission": "order:cancel",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "restricted",
+      "KITCHEN": "deny",
+      "WAITER": "restricted"
+    },
+    "test": "TC-RBAC-129"
+  },
+  {
+    "row": 30,
+    "permission": "order:update_meta",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "allow",
+      "KITCHEN": "deny",
+      "WAITER": "restricted"
+    },
+    "test": "TC-RBAC-130"
+  },
+  {
+    "row": 31,
+    "permission": "kot:read",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "allow",
+      "KITCHEN": "allow",
+      "WAITER": "allow"
+    },
+    "test": "TC-RBAC-131"
+  },
+  {
+    "row": 32,
+    "permission": "kot:update_status",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "deny",
+      "KITCHEN": "allow",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-132"
+  },
+  {
+    "row": 33,
+    "permission": "kot:serve",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "allow",
+      "KITCHEN": "allow",
+      "WAITER": "allow"
+    },
+    "test": "TC-RBAC-133"
+  },
+  {
+    "row": 34,
+    "permission": "kot:reprint",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "allow",
+      "KITCHEN": "allow",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-134"
+  },
+  {
+    "row": 35,
+    "permission": "customer:read",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "allow",
+      "KITCHEN": "deny",
+      "WAITER": "allow"
+    },
+    "test": "TC-RBAC-135"
+  },
+  {
+    "row": 36,
+    "permission": "customer:create",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "allow",
+      "KITCHEN": "deny",
+      "WAITER": "allow"
+    },
+    "test": "TC-RBAC-136"
+  },
+  {
+    "row": 37,
+    "permission": "customer:update",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "allow",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-137"
+  },
+  {
+    "row": 38,
+    "permission": "customer:archive",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "restricted",
+      "CASHIER": "deny",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-138"
+  },
+  {
+    "row": 39,
+    "permission": "transaction:read",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "allow",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-139"
+  },
+  {
+    "row": 40,
+    "permission": "payment:record",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "allow",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-140"
+  },
+  {
+    "row": 41,
+    "permission": "refund:create",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "deny",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-141"
+  },
+  {
+    "row": 42,
+    "permission": "transaction:void",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "deny",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-142"
+  },
+  {
+    "row": 43,
+    "permission": "day_close:perform",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "deny",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-143"
+  },
+  {
+    "row": 44,
+    "permission": "printer:manage",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "deny",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-144"
+  },
+  {
+    "row": 45,
+    "permission": "print_agent:manage",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "deny",
+      "CASHIER": "deny",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-145"
+  },
+  {
+    "row": 46,
+    "permission": "print_job:read",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "allow",
+      "KITCHEN": "allow",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-146"
+  },
+  {
+    "row": 47,
+    "permission": "print_job:retry",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "allow",
+      "KITCHEN": "allow",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-147"
+  },
+  {
+    "row": 48,
+    "permission": "report:read",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "deny",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-148"
+  },
+  {
+    "row": 49,
+    "permission": "social:manage",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "allow",
+      "CASHIER": "deny",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-149"
+  },
+  {
+    "row": 50,
+    "permission": "audit:read",
+    "allow": {
+      "SUPER_ADMIN": "deny",
+      "TENANT_ADMIN": "allow",
+      "MANAGER": "deny",
+      "CASHIER": "deny",
+      "KITCHEN": "deny",
+      "WAITER": "deny"
+    },
+    "test": "TC-RBAC-150"
+  }
+]

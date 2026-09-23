@@ -1,0 +1,200 @@
+"use client";
+
+import * as React from "react";
+import { Button } from "@/components/ui/button";
+import { Dialog } from "@/components/ui/dialog";
+import { Select, TextField } from "@/components/ui/inputs";
+import type { PrinterDto } from "@/lib/services/printing";
+import { createPrinterAction, updatePrinterAction } from "./actions";
+
+/**
+ * Add / edit printer (SA-PRN-01, SA-PRN-02; S1-P16-T006).
+ *
+ * The address field explains what the server will accept before the user types: a LAN printer needs a private IPv4
+ * address (SC-PRINT-06) and a USB printer needs its device or queue name. The server validates it again either way —
+ * this is guidance, not authorisation — and its field errors land back on the control they belong to.
+ */
+export type PrinterDialogOption = { id: string; name: string };
+
+const PURPOSES = [
+  { value: "KOT", label: "Kitchen tickets (KOT)" },
+  { value: "RECEIPT", label: "Receipts" },
+  { value: "KOT_AND_RECEIPT", label: "Kitchen tickets and receipts" },
+];
+
+const CONNECTIONS = [
+  { value: "LAN", label: "Network (LAN)" },
+  { value: "USB", label: "USB" },
+];
+
+const WIDTHS = [
+  { value: "80", label: "80 mm (48 columns)" },
+  { value: "58", label: "58 mm (32 columns)" },
+];
+
+type FormState = {
+  name: string;
+  purpose: string;
+  connectionType: string;
+  connectionAddress: string;
+  paperWidthMm: string;
+  kitchenSectionId: string;
+  printAgentId: string;
+};
+
+function stateOf(printer: PrinterDto | null): FormState {
+  return {
+    name: printer?.name ?? "",
+    purpose: printer?.purpose ?? "KOT",
+    connectionType: printer?.connectionType ?? "LAN",
+    connectionAddress: printer?.connectionAddress ?? "",
+    paperWidthMm: String(printer?.paperWidthMm ?? 80),
+    kitchenSectionId: printer?.kitchenSectionId ?? "",
+    printAgentId: printer?.printAgentId ?? "",
+  };
+}
+
+export function PrinterDialog({
+  open,
+  printer,
+  sections,
+  agents,
+  onClose,
+  onSaved,
+}: {
+  open: boolean;
+  printer: PrinterDto | null;
+  sections: readonly PrinterDialogOption[];
+  agents: readonly PrinterDialogOption[];
+  onClose: () => void;
+  onSaved: (message: string) => void;
+}) {
+  const [form, setForm] = React.useState<FormState>(() => stateOf(printer));
+  const [fieldErrors, setFieldErrors] = React.useState<Record<string, string[]>>({});
+  const [formError, setFormError] = React.useState<string | null>(null);
+  const [pending, setPending] = React.useState(false);
+
+  React.useEffect(() => {
+    if (open) {
+      setForm(stateOf(printer));
+      setFieldErrors({});
+      setFormError(null);
+    }
+  }, [open, printer]);
+
+  const set = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((current) => ({ ...current, [key]: value }));
+
+  async function save() {
+    setPending(true);
+    setFormError(null);
+    setFieldErrors({});
+    const shared = {
+      name: form.name,
+      purpose: form.purpose as PrinterDto["purpose"],
+      connectionType: form.connectionType as PrinterDto["connectionType"],
+      connectionAddress: form.connectionAddress,
+      paperWidthMm: (form.paperWidthMm === "58" ? 58 : 80) as 58 | 80,
+      kitchenSectionId: form.kitchenSectionId || null,
+      printAgentId: form.printAgentId || null,
+    };
+    const result = printer ? await updatePrinterAction({ printerId: printer.id, ...shared }) : await createPrinterAction(shared);
+    setPending(false);
+
+    if (!result.ok) {
+      setFieldErrors(result.error.fieldErrors ?? {});
+      if (!result.error.fieldErrors) setFormError(result.error.message);
+      return;
+    }
+    onSaved(printer ? `${result.data.name} updated.` : `${result.data.name} added.`);
+  }
+
+  const addressHelp =
+    form.connectionType === "LAN"
+      ? "Private network address, e.g. 192.168.1.50:9100. Public addresses and host names are refused."
+      : "The USB device or print-queue name shown by the restaurant PC, e.g. USB001.";
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title={printer ? `Edit ${printer.name}` : "Add printer"}
+      description="The local print agent connects to the printer; this restaurant's cloud account never does."
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={pending}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={() => void save()} loading={pending} loadingLabel="Saving…">
+            {printer ? "Save changes" : "Add printer"}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        {formError && (
+          <p role="alert" className="rounded-xl border border-status-danger/30 bg-status-danger/12 px-3 py-2 text-body text-status-danger">
+            {formError}
+          </p>
+        )}
+        <TextField
+          name="name"
+          label="Name"
+          required
+          value={form.name}
+          onChange={(event) => set("name", event.target.value)}
+          error={fieldErrors.name?.[0]}
+          placeholder="Kitchen Printer"
+          maxLength={60}
+        />
+        <Select name="purpose" label="Prints" options={PURPOSES} value={form.purpose} onChange={(event) => set("purpose", event.target.value)} error={fieldErrors.purpose?.[0]} />
+        <Select
+          name="connectionType"
+          label="Connection"
+          options={CONNECTIONS}
+          value={form.connectionType}
+          onChange={(event) => set("connectionType", event.target.value)}
+          error={fieldErrors.connectionType?.[0]}
+        />
+        <TextField
+          name="connectionAddress"
+          label="Address"
+          required
+          value={form.connectionAddress}
+          onChange={(event) => set("connectionAddress", event.target.value)}
+          error={fieldErrors.connectionAddress?.[0]}
+          help={addressHelp}
+          placeholder={form.connectionType === "LAN" ? "192.168.1.50:9100" : "USB001"}
+          maxLength={255}
+        />
+        <Select
+          name="paperWidthMm"
+          label="Paper width"
+          options={WIDTHS}
+          value={form.paperWidthMm}
+          onChange={(event) => set("paperWidthMm", event.target.value)}
+          error={fieldErrors.paperWidthMm?.[0]}
+        />
+        <Select
+          name="kitchenSectionId"
+          label="Kitchen station"
+          emptyOption="Any station (fallback printer)"
+          options={sections.map((section) => ({ value: section.id, label: section.name }))}
+          value={form.kitchenSectionId}
+          onChange={(event) => set("kitchenSectionId", event.target.value)}
+          error={fieldErrors.kitchenSectionId?.[0]}
+          help="Kitchen tickets for this station print here. Leave empty to catch stations without their own printer."
+        />
+        <Select
+          name="printAgentId"
+          label="Print agent"
+          emptyOption="Not assigned yet"
+          options={agents.map((agent) => ({ value: agent.id, label: agent.name }))}
+          value={form.printAgentId}
+          onChange={(event) => set("printAgentId", event.target.value)}
+          error={fieldErrors.printAgentId?.[0]}
+          help="Only the assigned agent can collect this printer's jobs."
+        />
+      </div>
+    </Dialog>
+  );
+}

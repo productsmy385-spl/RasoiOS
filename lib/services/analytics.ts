@@ -1,120 +1,44 @@
-import { prisma } from "@/lib/db/prisma";
-import { OrderStatus, OrderType, Prisma } from "@prisma/client";
+import "server-only";
+import type { OrderType } from "@prisma/client";
+import type { TenantContext } from "@/lib/auth/context-types";
+import { businessDaysEndingToday, salesSummary, topSellingItems, type BusinessDateRange } from "@/lib/data/reports";
+import { TIMEFRAME_DAYS, type Timeframe } from "@/lib/validation/reports";
 
-export type Timeframe = "today" | "7d" | "30d" | "all";
+/**
+ * Sales analytics for the analytics page (S1-P04-T007 interim; rebuilt in S1-P19-T006). Aggregation, tenant scoping
+ * and the revenue definition live in lib/data/reports.ts; this maps a timeframe to restaurant business dates.
+ */
+
+export type { Timeframe };
 
 export interface AnalyticsSummary {
-  grossRevenue: string; // Decimal string
+  /** Business dates covered (restaurant timezone); null for "all". */
+  range: BusinessDateRange | null;
+  currencyCode: string;
+  grossRevenue: string;
+  netRevenue: string;
   totalOrders: number;
   averageOrderValue: string;
   orderTypeBreakdown: Record<OrderType, { count: number; total: string }>;
-  topMenuItems: Array<{
-    name: string;
-    quantity: number;
-    revenue: string;
-  }>;
-  recentOrdersCount: number;
+  topMenuItems: Array<{ name: string; quantity: number; revenue: string }>;
 }
 
-/**
- * Calculates tenant sales and operational analytics using exact Decimal calculations.
- */
-export async function getTenantSalesAnalytics(
-  tenantId: string,
-  timeframe: Timeframe = "30d"
-): Promise<AnalyticsSummary> {
-  const now = new Date();
-  let startDate: Date | undefined = undefined;
+/** "today" / "7d" / "30d" are whole business days ending today in the restaurant's timezone; "all" is unbounded. */
+export function rangeForTimeframe(ctx: TenantContext, timeframe: Timeframe): BusinessDateRange | null {
+  return timeframe === "all" ? null : businessDaysEndingToday(ctx, TIMEFRAME_DAYS[timeframe]);
+}
 
-  if (timeframe === "today") {
-    startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  } else if (timeframe === "7d") {
-    startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  } else if (timeframe === "30d") {
-    startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  }
-
-  const whereClause: Prisma.OrderWhereInput = {
-    tenantId,
-    status: {
-      in: [OrderStatus.COMPLETED, OrderStatus.READY, OrderStatus.PREPARING, OrderStatus.ACCEPTED, OrderStatus.NEW],
-    },
-    ...(startDate ? { createdAt: { gte: startDate } } : {}),
-  };
-
-  const orders = await prisma.order.findMany({
-    where: whereClause,
-    include: {
-      items: true,
-    },
-  });
-
-  let grossRevenue = new Prisma.Decimal(0);
-  const orderTypeBreakdown: Record<OrderType, { count: number; total: Prisma.Decimal }> = {
-    DINE_IN: { count: 0, total: new Prisma.Decimal(0) },
-    TAKEAWAY: { count: 0, total: new Prisma.Decimal(0) },
-    DELIVERY: { count: 0, total: new Prisma.Decimal(0) },
-  };
-
-  const itemAggregator = new Map<string, { name: string; quantity: number; revenue: Prisma.Decimal }>();
-
-  for (const order of orders) {
-    const orderTotal = order.totalAmount;
-    grossRevenue = grossRevenue.add(orderTotal);
-
-    const typeBreakdown = orderTypeBreakdown[order.orderType] || {
-      count: 0,
-      total: new Prisma.Decimal(0),
-    };
-    typeBreakdown.count += 1;
-    typeBreakdown.total = typeBreakdown.total.add(orderTotal);
-    orderTypeBreakdown[order.orderType] = typeBreakdown;
-
-    for (const item of order.items) {
-      const existing = itemAggregator.get(item.itemNameSnapshot) || {
-        name: item.itemNameSnapshot,
-        quantity: 0,
-        revenue: new Prisma.Decimal(0),
-      };
-
-      const itemRevenue = item.priceSnapshot.mul(new Prisma.Decimal(item.quantity));
-      existing.quantity += item.quantity;
-      existing.revenue = existing.revenue.add(itemRevenue);
-      itemAggregator.set(item.itemNameSnapshot, existing);
-    }
-  }
-
-  const totalOrders = orders.length;
-  const aov = totalOrders > 0 ? grossRevenue.div(new Prisma.Decimal(totalOrders)) : new Prisma.Decimal(0);
-
-  const topMenuItems = Array.from(itemAggregator.values())
-    .sort((a, b) => b.quantity - a.quantity)
-    .slice(0, 5)
-    .map((item) => ({
-      name: item.name,
-      quantity: item.quantity,
-      revenue: item.revenue.toFixed(2),
-    }));
-
+export async function getTenantSalesAnalytics(ctx: TenantContext, timeframe: Timeframe): Promise<AnalyticsSummary> {
+  const range = rangeForTimeframe(ctx, timeframe);
+  const [summary, topMenuItems] = await Promise.all([salesSummary(ctx, range), topSellingItems(ctx, range, 5)]);
   return {
-    grossRevenue: grossRevenue.toFixed(2),
-    totalOrders,
-    averageOrderValue: aov.toFixed(2),
-    orderTypeBreakdown: {
-      DINE_IN: {
-        count: orderTypeBreakdown.DINE_IN.count,
-        total: orderTypeBreakdown.DINE_IN.total.toFixed(2),
-      },
-      TAKEAWAY: {
-        count: orderTypeBreakdown.TAKEAWAY.count,
-        total: orderTypeBreakdown.TAKEAWAY.total.toFixed(2),
-      },
-      DELIVERY: {
-        count: orderTypeBreakdown.DELIVERY.count,
-        total: orderTypeBreakdown.DELIVERY.total.toFixed(2),
-      },
-    },
+    range,
+    currencyCode: ctx.restaurant.currencyCode,
+    grossRevenue: summary.grossSales,
+    netRevenue: summary.netSales,
+    totalOrders: summary.salesOrderCount,
+    averageOrderValue: summary.averageOrderValue,
+    orderTypeBreakdown: summary.byOrderType,
     topMenuItems,
-    recentOrdersCount: totalOrders,
   };
 }

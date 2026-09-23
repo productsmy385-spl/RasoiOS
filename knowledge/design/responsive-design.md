@@ -1,25 +1,25 @@
 ---
-title: "Responsive Breakpoints & Touch Target Rules"
-document_type: "RESPONSIVE_SPEC"
-project: "Restaurant SaaS Platform (RASOIOS)"
+title: "Responsive Design (Domain Reference)"
+document_type: "REFERENCE"
+project: "Restaurant SaaS Platform"
 project_owner: "Gopala Krishna"
-status: "APPROVED"
-version: "1.0"
+slice: "SLICE-01"
+status: "PROPOSED"
+version: "2.0"
 created: "2026-09-15"
 last_updated: "2026-09-15"
-author: "Gopala Krishna"
-review_owner: "Gopala Krishna"
-target_slice: "Slice 02"
-target_start_date: "2026-09-23"
-target_end_date: "2026-09-30"
-priority: "HIGH"
+owner: "Gopala Krishna (Project Owner)"
+planned_start: "2026-09-15"
+planned_finish: "Not scheduled — execution-order plan"
 dependencies: []
-related_documents: ["design.md"]
+related_documents: ["../implementation/slice-01/design.md"]
 related_decisions: []
 ---
 
-# Responsive Breakpoints & Touch Target Rules
+# Responsive Design
+> **Canonical source:** [`../implementation/slice-01/design.md`](../implementation/slice-01/design.md). This domain file keeps only the durable summary for breakpoints and layouts (§4.2, §6). Detail lives in the canonical
+> file and is not repeated here (knowledge/README.md §Document responsibilities).
 
-- **Mobile Viewport (`< 640px`)**: Single-column layout for public menu, waiter ordering, and mobile cashier view. Touch targets minimum `44px × 44px`.
-- **Tablet Viewport (`640px - 1024px`)**: Dual-column grid for Kitchen Display System (KDS) and POS cashier order entry.
-- **Desktop Viewport (`> 1024px`)**: Multi-column dashboard layout with persistent sidebar navigation and high-density data tables.
+
+Breakpoints: base < 640 · sm ≥ 640 · md ≥ 768 · lg ≥ 1024 · xl ≥ 1280. Test viewports: 360, 390, 768, 1024, 1280, 1440.
+Touch targets ≥ 44 px on mobile (v1.0 retained) and ≥ 48 px in kitchen/POS. Tables become cards below 768 px. The page body never scrolls horizontally.

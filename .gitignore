@@ -8,6 +8,7 @@
 
 # Next.js
 /.next/
+/.next-stale-*/
 /out/
 
 # Production
@@ -28,3 +29,12 @@ yarn-error.log*
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+# Playwright
+/playwright-report/
+/test-results/
+/blob-report/
+/playwright/.cache/
+
+# Local embedded PostgreSQL data (npm run db:local)
+/.local/

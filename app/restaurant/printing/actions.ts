@@ -1,64 +1,155 @@
 "use server";
 
-import { z } from "zod";
-import { PrintJobStatus, PrintJobType } from "@prisma/client";
-import { getAuthenticatedSession } from "@/lib/auth/clerk";
-import { resolveTenantContext, requirePermission } from "@/lib/auth/tenant-context";
+import { requirePermission, requireTenant } from "@/lib/auth/guards";
+import { action } from "@/lib/http/action";
 import {
-  getTenantPrintJobs,
+  createPrintAgentPairing,
+  createPrinter,
+  createTestPrintJob,
+  deactivatePrinter,
+  getPrintingConsole,
+  listActivePrinters,
+  listAgents,
+  listPrintJobs,
+  listPrinters,
+  printReceipt,
+  reprintKot,
   retryPrintJob,
-  createPrintJob,
-  CreatePrintJobPayload,
+  revokePrintAgent,
+  updatePrinter,
 } from "@/lib/services/printing";
-import { ValidationError } from "@/lib/errors";
+import { parseInput } from "@/lib/validation/core";
+import {
+  createPrintAgentSchema,
+  createPrinterSchema,
+  printAgentIdSchema,
+  printJobFiltersSchema,
+  printReceiptSchema,
+  printerIdSchema,
+  reprintKotSchema,
+  retryPrintJobSchema,
+  testPrintSchema,
+  updatePrinterSchema,
+  type CreatePrintAgentInput,
+  type CreatePrinterInput,
+  type PrintAgentIdInput,
+  type PrintJobFiltersInput,
+  type PrintReceiptInput,
+  type PrinterIdInput,
+  type ReprintKotInput,
+  type RetryPrintJobInput,
+  type TestPrintInput,
+  type UpdatePrinterInput,
+} from "@/lib/validation/printing";
 
-const CreatePrintJobSchema = z.object({
-  orderId: z.string().optional(),
-  kotTicketId: z.string().optional(),
-  jobType: z.nativeEnum(PrintJobType),
-  targetPrinter: z.string().min(1, "Target printer name is required"),
-  payload: z.record(z.any()),
+/**
+ * Printing console actions (S1-P16-T003/T004/T006/T007; api.md LD-PRN-01, SA-PRN-01…06, SA-AGT-01/02, SA-KOT-02).
+ *
+ * Every action starts with its guard, so the permission is checked before any resource is loaded and a 403 can never
+ * reveal whether a printer, agent or job exists (security.md §1 steps 4–5, §3.3 rows 44–47). The tenant comes from
+ * the session only; inputs are strict objects, so a `tenantId` sent by a client is 422 rather than a filter.
+ */
+
+// ─── Reads (LD-PRN-01) ───
+
+/** LD-PRN-01 — agents, printers and the queue in one call — `print_job:read`. */
+export const getPrintingConsoleAction = action(async (input: PrintJobFiltersInput = {}) => {
+  const ctx = await requireTenant("print_job:read");
+  const filters = parseInput(printJobFiltersSchema, input);
+  return getPrintingConsole(ctx, filters);
 });
 
-export async function getPrintJobsAction(
-  filters?: { status?: PrintJobStatus; jobType?: PrintJobType },
-  requestedTenantId?: string
-) {
-  const session = await getAuthenticatedSession();
-  const context = resolveTenantContext(session, requestedTenantId);
+/** The print queue alone — `print_job:read`. */
+export const getPrintJobsAction = action(async (input: PrintJobFiltersInput = {}) => {
+  const ctx = await requireTenant("print_job:read");
+  const filters = parseInput(printJobFiltersSchema, input);
+  return listPrintJobs(ctx, filters);
+});
 
-  const jobs = await getTenantPrintJobs(context.tenantId, filters);
-  return { success: true, jobs };
-}
+/** Active printers, for target lists — `print_job:read`. */
+export const getPrintersAction = action(async () => {
+  const ctx = await requireTenant("print_job:read");
+  return listActivePrinters(ctx);
+});
 
-export async function retryPrintJobAction(
-  jobId: string,
-  requestedTenantId?: string
-) {
-  const session = await getAuthenticatedSession();
-  const context = resolveTenantContext(session, requestedTenantId);
-  requirePermission(context, "tenant:manage_own");
+/** Every printer including deactivated ones (Printers tab) — `printer:manage`. */
+export const getAllPrintersAction = action(async () => {
+  const ctx = await requireTenant("printer:manage");
+  return listPrinters(ctx);
+});
 
-  const retried = await retryPrintJob(context.tenantId, jobId);
-  return { success: true, job: retried };
-}
+/** Agents with a derived online flag (Agents tab) — `print_agent:manage`. */
+export const getPrintAgentsAction = action(async () => {
+  const ctx = await requireTenant("print_agent:manage");
+  return listAgents(ctx);
+});
 
-export async function createTestPrintJobAction(
-  input: z.input<typeof CreatePrintJobSchema>,
-  requestedTenantId?: string
-) {
-  const session = await getAuthenticatedSession();
-  const context = resolveTenantContext(session, requestedTenantId);
-  requirePermission(context, "tenant:manage_own");
+// ─── Printers (SA-PRN-01…04) ───
 
-  const parsed = CreatePrintJobSchema.safeParse(input);
-  if (!parsed.success) {
-    throw new ValidationError(
-      "Invalid print job payload",
-      parsed.error.flatten().fieldErrors
-    );
-  }
+/** SA-PRN-01 create a printer — `printer:manage`. */
+export const createPrinterAction = action(async (input: CreatePrinterInput) => {
+  const ctx = await requireTenant("printer:manage");
+  const data = parseInput(createPrinterSchema, input);
+  return createPrinter(ctx, data);
+});
 
-  const job = await createPrintJob(context.tenantId, parsed.data as CreatePrintJobPayload);
-  return { success: true, job };
-}
+/** SA-PRN-02 update a printer — `printer:manage`. */
+export const updatePrinterAction = action(async (input: UpdatePrinterInput) => {
+  const ctx = await requireTenant("printer:manage");
+  const data = parseInput(updatePrinterSchema, input);
+  return updatePrinter(ctx, data);
+});
+
+/** SA-PRN-03 deactivate a printer; its PENDING jobs fail with `PRINTER_DEACTIVATED` — `printer:manage`. */
+export const deactivatePrinterAction = action(async (input: PrinterIdInput) => {
+  const ctx = await requireTenant("printer:manage");
+  const { printerId } = parseInput(printerIdSchema, input);
+  return deactivatePrinter(ctx, printerId);
+});
+
+/** SA-PRN-04 test print to one of the tenant's printers — `printer:manage`. */
+export const createTestPrintJobAction = action(async (input: TestPrintInput) => {
+  const ctx = await requireTenant("printer:manage");
+  const { printerId } = parseInput(testPrintSchema, input);
+  return createTestPrintJob(ctx, printerId);
+});
+
+// ─── Jobs (SA-PRN-05, SA-PRN-06, SA-KOT-02) ───
+
+/** SA-PRN-05 retry a FAILED job — `print_job:retry`. */
+export const retryPrintJobAction = action(async (input: RetryPrintJobInput) => {
+  const ctx = await requireTenant("print_job:retry");
+  const { jobId } = parseInput(retryPrintJobSchema, input);
+  return retryPrintJob(ctx, jobId);
+});
+
+/** SA-PRN-06 queue an order's receipt — `print_job:retry` and `transaction:read` (api.md SA-PRN-06). */
+export const printReceiptAction = action(async (input: PrintReceiptInput) => {
+  const ctx = await requireTenant("print_job:retry");
+  requirePermission(ctx, "transaction:read");
+  const { orderId } = parseInput(printReceiptSchema, input);
+  return printReceipt(ctx, orderId);
+});
+
+/** SA-KOT-02 reprint a kitchen ticket — `kot:reprint`. The ticket's own print status is unchanged. */
+export const reprintKotAction = action(async (input: ReprintKotInput) => {
+  const ctx = await requireTenant("kot:reprint");
+  const { kotId } = parseInput(reprintKotSchema, input);
+  return reprintKot(ctx, kotId);
+});
+
+// ─── Agents (SA-AGT-01, SA-AGT-02) ───
+
+/** SA-AGT-01 create a pairing; the code is returned once and only its hash is stored — `print_agent:manage`. */
+export const createPrintAgentPairingAction = action(async (input: CreatePrintAgentInput) => {
+  const ctx = await requireTenant("print_agent:manage");
+  const { name } = parseInput(createPrintAgentSchema, input);
+  return createPrintAgentPairing(ctx, name);
+});
+
+/** SA-AGT-02 revoke an agent; its next call is 401 — `print_agent:manage`. */
+export const revokePrintAgentAction = action(async (input: PrintAgentIdInput) => {
+  const ctx = await requireTenant("print_agent:manage");
+  const { agentId } = parseInput(printAgentIdSchema, input);
+  return revokePrintAgent(ctx, agentId);
+});

@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { PaymentMethod, TransactionStatus, OrderStatus } from "@prisma/client";
-import { processPaymentAction, getTransactionsAction, processRefundAction } from "./actions";
-import { getOrdersAction } from "@/app/restaurant/orders/actions";
+import { PaymentMethod } from "@prisma/client";
+import { createRefundAction, listBillableOrdersAction, listTransactionsAction, recordPaymentAction } from "../transactions/actions";
+import type { ActionError } from "@/lib/http/action";
+import type { BillableOrderDto } from "@/lib/data/payments";
+import type { TransactionListItem } from "@/lib/data/transactions";
+import { formatMoney } from "@/lib/ui/format";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,46 +15,18 @@ import {
   CreditCard,
   DollarSign,
   QrCode,
-  Globe,
   Receipt,
   Printer,
   RefreshCw,
-  CheckCircle,
-  Search,
-  ArrowLeftRight,
 } from "lucide-react";
 
-interface OrderItem {
-  id: string;
-  itemNameSnapshot: string;
-  priceSnapshot: any;
-  quantity: number;
-}
+type OrderData = BillableOrderDto;
+type TransactionData = TransactionListItem;
 
-interface OrderData {
-  id: string;
-  orderNumber: string;
-  orderType: string;
-  status: OrderStatus;
-  tableNumber: string | null;
-  totalAmount: any;
-  createdAt: string | Date;
-  customer: { name: string; phone: string | null } | null;
-  items: OrderItem[];
-}
-
-interface TransactionData {
-  id: string;
-  orderId: string;
-  amount: any;
-  paymentMethod: PaymentMethod;
-  status: TransactionStatus;
-  referenceId: string | null;
-  createdAt: string | Date;
-  order: {
-    orderNumber: string;
-    customer: { name: string } | null;
-  };
+/** The action's message plus any field messages (e.g. "Enter the UPI reference"). */
+function describeError(error: ActionError): string {
+  const fields = error.fieldErrors ? Object.values(error.fieldErrors).flat() : [];
+  return fields.length > 0 ? `${error.message} ${fields.join(" ")}` : error.message;
 }
 
 export default function StaffBillingPage() {
@@ -63,7 +38,8 @@ export default function StaffBillingPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.CASH);
   const [amountTendered, setAmountTendered] = useState("");
   const [txRef, setTxRef] = useState("");
-  const [notes, setNotes] = useState("");
+  /** One UUID per settlement attempt: a double submit or a retry after a lost response replays, never double-charges. */
+  const [idempotencyKey, setIdempotencyKey] = useState("");
 
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -77,16 +53,19 @@ export default function StaffBillingPage() {
     startTransition(async () => {
       try {
         const [ordersRes, txRes] = await Promise.all([
-          getOrdersAction(),
-          getTransactionsAction(),
+          listBillableOrdersAction(),
+          listTransactionsAction(),
         ]);
 
-        if (ordersRes.success) {
-          // Filter active orders that require payment or are ready/completed
-          setOrders(ordersRes.orders as any);
+        if (ordersRes.ok) {
+          setOrders(ordersRes.data);
+        } else {
+          setErrorMsg(describeError(ordersRes.error));
         }
-        if (txRes.success) {
-          setTransactions(txRes.transactions as any);
+        if (txRes.ok) {
+          setTransactions(txRes.data.items);
+        } else {
+          setErrorMsg(describeError(txRes.error));
         }
       } catch (err: any) {
         setErrorMsg(err.message || "Failed to load billing data");
@@ -101,8 +80,16 @@ export default function StaffBillingPage() {
   }, []);
 
   const orderTotal = selectedOrder
-    ? parseFloat(String(selectedOrder.totalAmount))
+    ? parseFloat(selectedOrder.balance)
     : 0;
+  // Server amounts are exact decimal strings; the cash-change preview may not be (typed input), so fall back to raw text.
+  const money = (amount: string, currencyCode = selectedOrder?.currencyCode ?? "INR") => {
+    try {
+      return formatMoney(amount, currencyCode);
+    } catch {
+      return amount;
+    }
+  };
   const tenderedNum = parseFloat(amountTendered) || 0;
   const changeDue = Math.max(0, tenderedNum - orderTotal);
 
@@ -111,7 +98,7 @@ export default function StaffBillingPage() {
     if (!selectedOrder) return;
 
     if (paymentMethod === PaymentMethod.CASH && tenderedNum < orderTotal) {
-      setErrorMsg(`Amount tendered ($${tenderedNum.toFixed(2)}) is less than total amount ($${orderTotal.toFixed(2)})`);
+      setErrorMsg(`Amount tendered (${money(tenderedNum.toFixed(2))}) is less than the amount due (${money(selectedOrder.balance)})`);
       return;
     }
 
@@ -120,22 +107,26 @@ export default function StaffBillingPage() {
     setSuccessMsg(null);
 
     try {
-      const res = await processPaymentAction(selectedOrder.id, {
-        amount: orderTotal.toFixed(2),
-        paymentMethod,
-        transactionReference: txRef.trim() || undefined,
-        notes: notes.trim() || undefined,
+      const res = await recordPaymentAction({
+        orderId: selectedOrder.id,
+        idempotencyKey,
+        method: paymentMethod,
+        amount: selectedOrder.balance,
+        reference: txRef.trim() || undefined,
+        amountTendered: paymentMethod === PaymentMethod.CASH ? amountTendered.trim() : undefined,
       });
 
-      if (res.success) {
-        setSuccessMsg(`Payment of $${orderTotal.toFixed(2)} recorded successfully for ${selectedOrder.orderNumber}!`);
+      if (res.ok) {
+        setSuccessMsg(`Payment of ${money(res.data.amount)} recorded successfully for ${selectedOrder.orderNumber}!`);
         // Open receipt pop-up
         window.open(`/restaurant/billing/receipt/${selectedOrder.id}`, "_blank");
         setSelectedOrder(null);
         setAmountTendered("");
         setTxRef("");
-        setNotes("");
+        setIdempotencyKey("");
         fetchData();
+      } else {
+        setErrorMsg(describeError(res.error));
       }
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to process payment");
@@ -145,13 +136,17 @@ export default function StaffBillingPage() {
   }
 
   async function handleRefundTransaction(txId: string) {
-    if (!confirm("Are you sure you want to refund this transaction?")) return;
+    // The prompt doubles as the confirmation; a refund always records why (refund.created audit).
+    const reason = window.prompt("Reason for refunding this transaction (5–280 characters):");
+    if (reason === null) return;
     try {
       setErrorMsg(null);
-      const res = await processRefundAction(txId, "Staff initiated refund");
-      if (res.success) {
+      const res = await createRefundAction({ paymentTransactionId: txId, idempotencyKey: crypto.randomUUID(), reason });
+      if (res.ok) {
         setSuccessMsg("Transaction refunded successfully.");
         fetchData();
+      } else {
+        setErrorMsg(describeError(res.error));
       }
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to refund transaction");
@@ -161,16 +156,16 @@ export default function StaffBillingPage() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#3D3732] pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border-subtle pb-5">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-2xl border border-emerald-500/20">
+          <div className="p-3 bg-status-success/10 text-status-success rounded-2xl border border-status-success/20">
             <Receipt className="w-7 h-7" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold font-display text-[#F3F1EE]">
+            <h1 className="text-2xl font-bold font-display text-fg-primary">
               Billing & Cashier Terminal
             </h1>
-            <p className="text-xs text-[#A8A29E]">
+            <p className="text-xs text-fg-secondary">
               Process guest settlements, record payments, and print tax bills
             </p>
           </div>
@@ -190,31 +185,31 @@ export default function StaffBillingPage() {
       </div>
 
       {errorMsg && (
-        <div className="p-4 bg-red-950/40 text-red-400 border border-red-500/30 rounded-xl text-sm flex items-center justify-between">
+        <div className="p-4 bg-status-danger/40 text-status-danger border border-status-danger/30 rounded-xl text-sm flex items-center justify-between">
           <span>{errorMsg}</span>
-          <button onClick={() => setErrorMsg(null)} className="text-red-400 hover:text-white">
+          <button onClick={() => setErrorMsg(null)} className="text-status-danger hover:text-fg-primary">
             ✕
           </button>
         </div>
       )}
 
       {successMsg && (
-        <div className="p-4 bg-emerald-950/40 text-emerald-400 border border-emerald-500/30 rounded-xl text-sm flex items-center justify-between">
+        <div className="p-4 bg-status-success/40 text-status-success border border-status-success/30 rounded-xl text-sm flex items-center justify-between">
           <span>{successMsg}</span>
-          <button onClick={() => setSuccessMsg(null)} className="text-emerald-400 hover:text-white">
+          <button onClick={() => setSuccessMsg(null)} className="text-status-success hover:text-fg-primary">
             ✕
           </button>
         </div>
       )}
 
       {/* Mode Tabs */}
-      <div className="flex items-center gap-4 border-b border-[#3D3732] pb-2">
+      <div className="flex items-center gap-4 border-b border-border-subtle pb-2">
         <button
           onClick={() => setActiveTab("UNPAID")}
           className={`pb-2 text-sm font-semibold transition-all border-b-2 ${
             activeTab === "UNPAID"
-              ? "border-[#D97706] text-[#D97706]"
-              : "border-transparent text-[#A8A29E] hover:text-white"
+              ? "border-action-primary text-fg-accent"
+              : "border-transparent text-fg-secondary hover:text-fg-primary"
           }`}
         >
           Orders Awaiting Settlement ({orders.length})
@@ -223,8 +218,8 @@ export default function StaffBillingPage() {
           onClick={() => setActiveTab("TRANSACTIONS")}
           className={`pb-2 text-sm font-semibold transition-all border-b-2 ${
             activeTab === "TRANSACTIONS"
-              ? "border-[#D97706] text-[#D97706]"
-              : "border-transparent text-[#A8A29E] hover:text-white"
+              ? "border-action-primary text-fg-accent"
+              : "border-transparent text-fg-secondary hover:text-fg-primary"
           }`}
         >
           Settled Transactions Log ({transactions.length})
@@ -234,48 +229,47 @@ export default function StaffBillingPage() {
       {activeTab === "UNPAID" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {orders.map((order) => {
-            const amount = parseFloat(String(order.totalAmount));
             return (
               <Card
                 key={order.id}
-                className="p-5 space-y-4 bg-[#24201D] border-[#3D3732] flex flex-col justify-between"
+                className="p-5 space-y-4 bg-card border-border-subtle flex flex-col justify-between"
               >
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between border-b border-[#3D3732] pb-3">
+                  <div className="flex items-center justify-between border-b border-border-subtle pb-3">
                     <div>
-                      <div className="font-mono text-base font-bold text-amber-400">
+                      <div className="tabular-nums text-base font-bold text-fg-accent">
                         {order.orderNumber}
                       </div>
-                      <div className="text-xs text-[#A8A29E]">
-                        {order.tableNumber ? `Table ${order.tableNumber}` : order.orderType}
+                      <div className="text-xs text-fg-secondary">
+                        {order.tableLabel ? `Table ${order.tableLabel}` : order.orderType}
                       </div>
                     </div>
                     <Badge variant="outline">{order.status}</Badge>
                   </div>
 
                   {/* Customer / Items preview */}
-                  <div className="text-xs space-y-1 text-[#A8A29E]">
-                    {order.customer && (
-                      <div className="text-[#F3F1EE] font-medium">
-                        Patron: {order.customer.name}
+                  <div className="text-xs space-y-1 text-fg-secondary">
+                    {order.customerName && (
+                      <div className="text-fg-primary font-medium">
+                        Patron: {order.customerName}
                       </div>
                     )}
                     <div className="pt-1">
                       {order.items.map((i) => (
-                        <div key={i.id} className="flex justify-between text-[11px]">
-                          <span>{i.quantity}x {i.itemNameSnapshot}</span>
-                          <span className="font-mono">${(parseFloat(String(i.priceSnapshot)) * i.quantity).toFixed(2)}</span>
+                        <div key={i.id} className="flex justify-between text-caption">
+                          <span>{i.quantity}x {i.name}</span>
+                          <span className="tabular-nums">{money(i.lineTotal, order.currencyCode)}</span>
                         </div>
                       ))}
                     </div>
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-[#3D3732] flex items-center justify-between">
+                <div className="pt-3 border-t border-border-subtle flex items-center justify-between">
                   <div>
-                    <div className="text-[10px] text-[#A8A29E]">Amount Due</div>
-                    <div className="font-mono text-xl font-extrabold text-emerald-400">
-                      ${amount.toFixed(2)}
+                    <div className="text-caption text-fg-secondary">Amount Due</div>
+                    <div className="tabular-nums text-xl font-extrabold text-status-success">
+                      {money(order.balance, order.currencyCode)}
                     </div>
                   </div>
 
@@ -284,7 +278,7 @@ export default function StaffBillingPage() {
                       href={`/restaurant/billing/receipt/${order.id}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="p-2 bg-[#2D2825] hover:bg-[#3D3732] text-[#A8A29E] hover:text-white rounded-lg border border-[#3D3732]"
+                      className="p-2 bg-raised hover:bg-raised text-fg-secondary hover:text-fg-primary rounded-xl border border-border-subtle"
                       title="Preview Tax Receipt"
                     >
                       <Printer className="w-4 h-4" />
@@ -294,10 +288,11 @@ export default function StaffBillingPage() {
                       size="sm"
                       onClick={() => {
                         setSelectedOrder(order);
-                        setAmountTendered(amount.toFixed(2));
+                        setAmountTendered(order.balance);
+                        setIdempotencyKey(crypto.randomUUID());
                       }}
                     >
-                      Pay ${amount.toFixed(2)}
+                      Pay {money(order.balance, order.currencyCode)}
                     </Button>
                   </div>
                 </div>
@@ -307,9 +302,9 @@ export default function StaffBillingPage() {
         </div>
       ) : (
         /* Transactions Table */
-        <div className="bg-[#24201D] border border-[#3D3732] rounded-xl overflow-hidden shadow-xl">
+        <div className="bg-card border border-border-subtle rounded-xl overflow-hidden shadow-e2">
           <table className="w-full text-left text-xs">
-            <thead className="bg-[#1A1715] text-[#A8A29E] uppercase tracking-wider font-semibold border-b border-[#3D3732]">
+            <thead className="bg-canvas text-fg-secondary uppercase tracking-wider font-semibold border-b border-border-subtle">
               <tr>
                 <th className="px-5 py-3.5">Date & Time</th>
                 <th className="px-5 py-3.5">Order #</th>
@@ -320,25 +315,25 @@ export default function StaffBillingPage() {
                 <th className="px-5 py-3.5 text-right">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#3D3732] text-[#F3F1EE]">
+            <tbody className="divide-y divide-border-subtle text-fg-primary">
               {transactions.map((tx) => (
-                <tr key={tx.id} className="hover:bg-[#2D2825] transition-colors">
-                  <td className="px-5 py-4 font-mono text-[#A8A29E]">
+                <tr key={tx.id} className="hover:bg-raised transition-colors">
+                  <td className="px-5 py-4 tabular-nums text-fg-secondary">
                     {new Date(tx.createdAt).toLocaleString()}
                   </td>
-                  <td className="px-5 py-4 font-mono font-bold text-amber-400">
-                    {tx.order.orderNumber}
+                  <td className="px-5 py-4 tabular-nums font-bold text-fg-accent">
+                    {tx.orderNumber}
                   </td>
                   <td className="px-5 py-4 uppercase font-bold tracking-wider text-xs">
-                    <span className="px-2 py-0.5 bg-[#2D2825] rounded border border-[#3D3732]">
-                      {tx.paymentMethod}
+                    <span className="px-2 py-0.5 bg-raised rounded border border-border-subtle">
+                      {tx.type === "REFUND" ? `${tx.method} REFUND` : tx.method}
                     </span>
                   </td>
-                  <td className="px-5 py-4 font-mono text-[#A8A29E]">
-                    {tx.referenceId || "—"}
+                  <td className="px-5 py-4 tabular-nums text-fg-secondary">
+                    {tx.reference || "—"}
                   </td>
-                  <td className="px-5 py-4 text-right font-mono font-bold text-emerald-400 text-sm">
-                    ${parseFloat(String(tx.amount)).toFixed(2)}
+                  <td className="px-5 py-4 text-right tabular-nums font-bold text-status-success text-sm">
+                    {tx.type === "REFUND" ? "-" : ""}{money(tx.amount, tx.currencyCode)}
                   </td>
                   <td className="px-5 py-4 text-center">
                     <Badge variant={tx.status === "SUCCESS" ? "success" : "destructive"}>
@@ -346,7 +341,7 @@ export default function StaffBillingPage() {
                     </Badge>
                   </td>
                   <td className="px-5 py-4 text-right">
-                    {tx.status === "SUCCESS" && (
+                    {tx.type === "PAYMENT" && tx.status === "SUCCESS" && tx.refundable !== "0.00" && (
                       <Button
                         size="sm"
                         variant="destructive"
@@ -366,19 +361,19 @@ export default function StaffBillingPage() {
       {/* Payment Settlement Modal */}
       {selectedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-[#1A1715] text-[#F3F1EE] border border-[#3D3732] rounded-2xl max-w-lg w-full p-6 space-y-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#3D3732] pb-4">
+          <div className="bg-canvas text-fg-primary border border-border-subtle rounded-2xl max-w-lg w-full p-6 space-y-6 shadow-e3">
+            <div className="flex items-center justify-between border-b border-border-subtle pb-4">
               <div>
-                <h2 className="text-xl font-bold font-display text-white">
+                <h2 className="text-xl font-bold font-display text-fg-primary">
                   Settle Payment — {selectedOrder.orderNumber}
                 </h2>
-                <p className="text-xs text-[#A8A29E]">
+                <p className="text-xs text-fg-secondary">
                   Select payment channel and verify monetary total
                 </p>
               </div>
               <button
                 onClick={() => setSelectedOrder(null)}
-                className="text-[#A8A29E] hover:text-white text-lg"
+                className="text-fg-secondary hover:text-fg-primary text-lg"
               >
                 ✕
               </button>
@@ -387,15 +382,14 @@ export default function StaffBillingPage() {
             <form onSubmit={handleSettlePayment} className="space-y-5">
               {/* Payment Method Selector */}
               <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase text-[#A8A29E] tracking-wider">
+                <label className="text-xs font-semibold uppercase text-fg-secondary tracking-wider">
                   Payment Method
                 </label>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   {[
                     { method: "CASH", icon: DollarSign, label: "Cash" },
                     { method: "CARD", icon: CreditCard, label: "Card" },
                     { method: "UPI", icon: QrCode, label: "UPI" },
-                    { method: "ONLINE", icon: Globe, label: "Online" },
                   ].map(({ method, icon: Icon, label }) => (
                     <button
                       key={method}
@@ -403,8 +397,8 @@ export default function StaffBillingPage() {
                       onClick={() => setPaymentMethod(method as PaymentMethod)}
                       className={`py-3 flex flex-col items-center gap-1 rounded-xl border text-xs font-semibold transition-all ${
                         paymentMethod === method
-                          ? "bg-emerald-950/60 text-emerald-400 border-emerald-500"
-                          : "bg-[#24201D] text-[#A8A29E] border-[#3D3732] hover:border-[#524B45]"
+                          ? "bg-status-success/60 text-status-success border-status-success"
+                          : "bg-card text-fg-secondary border-border-subtle hover:border-border-strong"
                       }`}
                     >
                       <Icon className="w-5 h-5" />
@@ -415,36 +409,36 @@ export default function StaffBillingPage() {
               </div>
 
               {/* Amount Breakdown */}
-              <div className="p-4 bg-[#24201D] border border-[#3D3732] rounded-xl space-y-2">
-                <div className="flex justify-between text-xs text-[#A8A29E]">
-                  <span>Total Bill Amount</span>
-                  <span className="font-mono text-white font-bold text-sm">${orderTotal.toFixed(2)}</span>
+              <div className="p-4 bg-card border border-border-subtle rounded-xl space-y-2">
+                <div className="flex justify-between text-xs text-fg-secondary">
+                  <span>Amount Due</span>
+                  <span className="tabular-nums text-fg-primary font-bold text-sm">{money(selectedOrder.balance)}</span>
                 </div>
 
                 {paymentMethod === "CASH" && (
                   <>
-                    <div className="flex justify-between items-center pt-2 border-t border-[#3D3732]">
-                      <label className="text-xs text-[#A8A29E]">Amount Tendered ($)</label>
+                    <div className="flex justify-between items-center pt-2 border-t border-border-subtle">
+                      <label className="text-xs text-fg-secondary">Amount Tendered</label>
                       <Input
                         type="number"
                         step="0.01"
-                        className="w-32 text-right font-mono text-sm"
+                        className="w-32 text-right tabular-nums text-sm"
                         value={amountTendered}
                         onChange={(e) => setAmountTendered(e.target.value)}
                       />
                     </div>
                     <div className="flex justify-between text-xs pt-1">
-                      <span className="text-[#A8A29E]">Change Due</span>
-                      <span className="font-mono font-bold text-emerald-400 text-sm">
-                        ${changeDue.toFixed(2)}
+                      <span className="text-fg-secondary">Change Due</span>
+                      <span className="tabular-nums font-bold text-status-success text-sm">
+                        {money(changeDue.toFixed(2))}
                       </span>
                     </div>
                   </>
                 )}
 
-                {(paymentMethod === "CARD" || paymentMethod === "UPI" || paymentMethod === "ONLINE") && (
-                  <div className="pt-2 border-t border-[#3D3732]">
-                    <label className="text-xs text-[#A8A29E]">Transaction Reference / Approval Code</label>
+                {(paymentMethod === "CARD" || paymentMethod === "UPI") && (
+                  <div className="pt-2 border-t border-border-subtle">
+                    <label className="text-xs text-fg-secondary">Transaction Reference / Approval Code</label>
                     <Input
                       placeholder="e.g. TXN987654321"
                       className="mt-1 text-xs"
@@ -467,9 +461,9 @@ export default function StaffBillingPage() {
                   type="submit"
                   disabled={isProcessing}
                   variant="primary"
-                  className="bg-emerald-600 hover:bg-emerald-500 py-2.5 px-6 font-bold"
+                  className="bg-status-success hover:bg-status-success py-2.5 px-6 font-bold"
                 >
-                  {isProcessing ? "Processing..." : `Complete Settlement — $${orderTotal.toFixed(2)}`}
+                  {isProcessing ? "Processing..." : `Complete Settlement — ${money(selectedOrder.balance)}`}
                 </Button>
               </div>
             </form>

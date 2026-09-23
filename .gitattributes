@@ -1,0 +1,25 @@
+# Line endings are LF everywhere — in the index and in the working tree.
+#
+# `core.autocrlf=true` is the Git for Windows default, so without this file a checkout (or a stash pop) rewrites every
+# text file with CRLF while the index keeps LF. Two static tests read files byte for byte — `claude-md-commands`
+# compares the command list in CLAUDE.md, and the design-system test matches the `@supports` blocks in globals.css —
+# so they failed on Windows for a reason no diff could show [observed 2026-09-23, after a stash cycle reverted the
+# tree]. The app also ships text to a thermal printer, where a stray CR is a real byte on a real receipt.
+#
+# `text=auto eol=lf` normalises on commit and checks out LF regardless of `core.autocrlf`.
+* text=auto eol=lf
+
+# Binaries: never touched.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.avif binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.pdf binary
+*.zip binary

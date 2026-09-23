@@ -1,110 +1,104 @@
-import { prisma } from "@/lib/db/prisma";
-import { getAuthenticatedSession } from "@/lib/auth/clerk";
-import { resolveTenantContext } from "@/lib/auth/tenant-context";
+import { requireTenantPage } from "@/lib/auth/guards";
+import { reportRangeOrDefault, salesSummary } from "@/lib/data/reports";
 import { Card } from "@/components/ui/card";
+import { formatMoney } from "@/lib/ui/format";
 import { FileBarChart, TrendingUp, Award } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-export default async function ReportsPage() {
-  const session = await getAuthenticatedSession();
-  const context = resolveTenantContext(session);
+type SearchParams = Record<string, string | string[] | undefined>;
 
-  const orders = await prisma.order.findMany({
-    where: { tenantId: context.tenantId },
-    include: { items: true },
-  });
+const single = (value: string | string[] | undefined) => (typeof value === "string" ? value : undefined);
 
-  const totalSales = orders.reduce(
-    (acc, o) => acc + Number(o.totalAmount),
-    0
-  );
-
-  const completedCount = orders.filter((o) => o.status === "COMPLETED").length;
-  const avgOrderValue = orders.length > 0 ? totalSales / orders.length : 0;
+// Reports (S1-P04-T007 interim; LD-RPT-01…05 in S1-P19). `report:read`; aggregates are scoped to the session's tenant
+// and filtered by restaurant business dates (`?from=&to=`, default the last 7 days). Only from/to are read from the URL.
+export default async function ReportsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const ctx = await requireTenantPage("report:read");
+  const params = await searchParams;
+  const range = reportRangeOrDefault(ctx, { from: single(params.from), to: single(params.to) });
+  const summary = await salesSummary(ctx, range);
+  const money = (amount: string) => formatMoney(amount, ctx.restaurant.currencyCode);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       <div>
-        <h1 className="font-display text-2xl font-bold text-[#FBF9F5]">
+        <h1 className="font-display text-2xl font-bold text-fg-primary">
           Daily Operational Reports
         </h1>
-        <p className="text-xs text-gray-400 mt-1">
+        <p className="text-xs text-fg-secondary mt-1">
           Performance metrics, order volume analytics, and item sales distribution.
+        </p>
+        <p className="text-xs text-fg-secondary mt-1 tabular-nums">
+          Business dates {range.from} to {range.to} ({ctx.restaurant.timezone})
         </p>
       </div>
 
       {/* Analytics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="glass-panel p-5 flex items-center justify-between border-l-4 border-l-[#D97706]">
+        <Card className="border border-border-subtle bg-card shadow-e1 p-5 flex items-center justify-between border-l-4 border-l-action-primary">
           <div>
-            <p className="text-xs text-gray-400 font-mono uppercase">Gross Sales</p>
-            <p className="text-2xl font-bold font-mono text-[#D97706] mt-1">
-              ${totalSales.toFixed(2)}
+            <p className="text-xs text-fg-secondary tabular-nums uppercase">Gross Sales</p>
+            <p className="text-2xl font-bold tabular-nums text-fg-accent mt-1">
+              {money(summary.grossSales)}
+            </p>
+            <p className="text-caption text-fg-secondary tabular-nums mt-1">
+              Net {money(summary.netSales)} after {money(summary.refunds)} refunds
             </p>
           </div>
-          <TrendingUp className="w-8 h-8 text-[#D97706]/40" />
+          <TrendingUp className="w-8 h-8 text-fg-accent/40" />
         </Card>
 
-        <Card className="glass-panel p-5 flex items-center justify-between border-l-4 border-l-[#10B981]">
+        <Card className="border border-border-subtle bg-card shadow-e1 p-5 flex items-center justify-between border-l-4 border-l-status-success">
           <div>
-            <p className="text-xs text-gray-400 font-mono uppercase">Fulfilled Orders</p>
-            <p className="text-2xl font-bold font-mono text-[#10B981] mt-1">
-              {completedCount} / {orders.length}
+            <p className="text-xs text-fg-secondary tabular-nums uppercase">Fulfilled Orders</p>
+            <p className="text-2xl font-bold tabular-nums text-status-success mt-1">
+              {summary.completedCount} / {summary.orderCount}
             </p>
           </div>
-          <Award className="w-8 h-8 text-[#10B981]/40" />
+          <Award className="w-8 h-8 text-status-success/40" />
         </Card>
 
-        <Card className="glass-panel p-5 flex items-center justify-between border-l-4 border-l-amber-500">
+        <Card className="border border-border-subtle bg-card shadow-e1 p-5 flex items-center justify-between border-l-4 border-l-action-primary">
           <div>
-            <p className="text-xs text-gray-400 font-mono uppercase">Average Order Value</p>
-            <p className="text-2xl font-bold font-mono text-amber-400 mt-1">
-              ${avgOrderValue.toFixed(2)}
+            <p className="text-xs text-fg-secondary tabular-nums uppercase">Average Order Value</p>
+            <p className="text-2xl font-bold tabular-nums text-fg-accent mt-1">
+              {money(summary.averageOrderValue)}
             </p>
           </div>
-          <FileBarChart className="w-8 h-8 text-amber-500/40" />
+          <FileBarChart className="w-8 h-8 text-fg-accent/40" />
         </Card>
       </div>
 
       {/* Report Breakdown */}
-      <Card className="glass-panel p-6 space-y-4">
-        <h3 className="font-display font-bold text-lg text-[#FBF9F5]">
+      <Card className="border border-border-subtle bg-card shadow-e1 p-6 space-y-4">
+        <h3 className="font-display font-bold text-lg text-fg-primary">
           Operational Summary
         </h3>
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-fg-secondary">
           All order transactions snapshot historical product prices and tax rates at order creation time to guarantee financial immutability.
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-[#38322E]">
-          <div className="p-4 rounded-xl bg-[#1A1715]/60 border border-[#38322E] space-y-2">
-            <span className="text-xs font-mono text-amber-400 uppercase">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-border-subtle">
+          <div className="p-4 rounded-xl bg-canvas/60 border border-border-subtle space-y-2">
+            <span className="text-xs tabular-nums text-fg-accent uppercase">
               Sales by Order Type
             </span>
             <div className="space-y-1 text-xs">
-              <div className="flex justify-between text-gray-300">
+              <div className="flex justify-between text-fg-secondary">
                 <span>DINE IN</span>
-                <span>{orders.filter((o) => o.orderType === "DINE_IN").length} orders</span>
+                <span>{summary.byOrderType.DINE_IN.count} orders</span>
               </div>
-              <div className="flex justify-between text-gray-300">
+              <div className="flex justify-between text-fg-secondary">
                 <span>TAKEAWAY</span>
-                <span>{orders.filter((o) => o.orderType === "TAKEAWAY").length} orders</span>
+                <span>{summary.byOrderType.TAKEAWAY.count} orders</span>
               </div>
-              <div className="flex justify-between text-gray-300">
+              <div className="flex justify-between text-fg-secondary">
                 <span>DELIVERY</span>
-                <span>{orders.filter((o) => o.orderType === "DELIVERY").length} orders</span>
+                <span>{summary.byOrderType.DELIVERY.count} orders</span>
               </div>
             </div>
           </div>
 
-          <div className="p-4 rounded-xl bg-[#1A1715]/60 border border-[#38322E] space-y-2">
-            <span className="text-xs font-mono text-[#10B981] uppercase">
-              Compliance & Security
-            </span>
-            <p className="text-xs text-gray-400 leading-relaxed">
-              Audited PostgreSQL database with multi-tenant row isolation. Print jobs and POS receipts are strictly scoped to the tenant context.
-            </p>
-          </div>
         </div>
       </Card>
     </div>

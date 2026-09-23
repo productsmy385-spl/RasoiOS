@@ -1,161 +1,106 @@
 "use server";
 
-import { z } from "zod";
-import { Prisma } from "@prisma/client";
-import { getAuthenticatedSession } from "@/lib/auth/clerk";
-import { resolveTenantContext, requirePermission, assertTenantOwnership } from "@/lib/auth/tenant-context";
-import { prisma } from "@/lib/db/prisma";
-import { ValidationError, NotFoundError } from "@/lib/errors";
+import { requireTenant } from "@/lib/auth/guards";
+import { action } from "@/lib/http/action";
+import { archiveItem, createItem, getItemDetail, listItems, reorderItems, setItemAvailability, setItemPublished, updateItem } from "@/lib/services/menu-items";
+import { replaceAddons, replaceVariants } from "@/lib/services/menu-modifiers";
+import { parseInput } from "@/lib/validation/core";
+import {
+  createMenuItemSchema,
+  menuItemListQuerySchema,
+  menuItemRefSchema,
+  replaceAddonsSchema,
+  replaceVariantsSchema,
+  reorderMenuItemsSchema,
+  setMenuItemAvailabilitySchema,
+  setMenuItemPublishedSchema,
+  updateMenuItemSchema,
+  type CreateMenuItemInput,
+  type MenuItemListQueryInput,
+  type MenuItemRefInput,
+  type ReorderMenuItemsInput,
+  type ReplaceAddonsInput,
+  type ReplaceVariantsInput,
+  type SetMenuItemAvailabilityInput,
+  type SetMenuItemPublishedInput,
+  type UpdateMenuItemInput,
+} from "@/lib/validation/menu";
 
-const CreateMenuItemSchema = z.object({
-  categoryId: z.string().uuid("Invalid Category ID"),
-  name: z.string().min(2, "Item name must be at least 2 characters"),
-  description: z.string().optional(),
-  imageUrl: z.string().url("Must be a valid image URL").optional().or(z.literal("")),
-  price: z.string().regex(/^\d+(\.\d{1,2})?$/, "Price must be a valid positive amount"),
-  taxRate: z.string().regex(/^\d+(\.\d{1,2})?$/, "Tax rate must be a percentage").default("0.00"),
-  displayOrder: z.number().int().optional().default(0),
-  variants: z.array(z.object({ name: z.string(), price: z.string() })).optional(),
-  addOns: z.array(z.object({ name: z.string(), price: z.string() })).optional(),
+/**
+ * Menu item actions (S1-P10-T003/T004; api.md LD-MENU-02/03, SA-MENU-06…13).
+ *
+ * The permission is checked first (security.md §3.3 rows 18–20) and the tenant comes only from the context. Prices
+ * arrive as decimal strings and become `Prisma.Decimal` in the schema (ADR-010 §1) — the actions never see a float.
+ * Availability has its own permission so a CASHIER cannot mark items sold out, and publication, ordering and the
+ * modifier sets are separate actions rather than fields of an update.
+ */
+
+/** LD-MENU-02 — `menu:read`: filters, search and keyset pagination. */
+export const listMenuItemsAction = action(async (input?: MenuItemListQueryInput) => {
+  const ctx = await requireTenant("menu:read");
+  const query = parseInput(menuItemListQuerySchema, input ?? {});
+  return listItems(ctx, query);
 });
 
-const UpdateMenuItemSchema = CreateMenuItemSchema.partial().extend({
-  id: z.string().uuid("Invalid Item ID"),
-  isAvailable: z.boolean().optional(),
+/** LD-MENU-03 — `menu:read`: one item with variants, add-ons and kitchen section options (404 for a foreign id). */
+export const getMenuItemAction = action(async (input: MenuItemRefInput) => {
+  const ctx = await requireTenant("menu:read");
+  const { itemId } = parseInput(menuItemRefSchema, input);
+  return getItemDetail(ctx, itemId);
 });
 
-export async function createMenuItemAction(input: z.input<typeof CreateMenuItemSchema>, requestedTenantId?: string) {
-  const session = await getAuthenticatedSession();
-  const context = resolveTenantContext(session, requestedTenantId);
-  requirePermission(context, "menu:manage");
+/** SA-MENU-06 — `menu:manage`; created unpublished. A category or section of another tenant is 404 (TI-005). */
+export const createMenuItemAction = action(async (input: CreateMenuItemInput) => {
+  const ctx = await requireTenant("menu:manage");
+  const data = parseInput(createMenuItemSchema, input);
+  return createItem(ctx, data);
+});
 
-  const parsed = CreateMenuItemSchema.safeParse(input);
-  if (!parsed.success) {
-    throw new ValidationError("Invalid menu item creation payload", parsed.error.flatten().fieldErrors);
-  }
+/** SA-MENU-07 — `menu:manage`; a stale `expectedUpdatedAt` is 409 CONFLICT (TI-006). */
+export const updateMenuItemAction = action(async (input: UpdateMenuItemInput) => {
+  const ctx = await requireTenant("menu:manage");
+  const data = parseInput(updateMenuItemSchema, input);
+  return updateItem(ctx, data);
+});
 
-  // Ensure category belongs to tenant
-  const category = await prisma.menuCategory.findUnique({
-    where: { id: parsed.data.categoryId },
-  });
-  assertTenantOwnership(context, category, "Menu Category");
+/** SA-MENU-08 — `menu:manage`; archive, unpublish and drop from today's and later daily menus (TI-007). */
+export const archiveMenuItemAction = action(async (input: MenuItemRefInput) => {
+  const ctx = await requireTenant("menu:manage");
+  const { itemId } = parseInput(menuItemRefSchema, input);
+  return archiveItem(ctx, itemId);
+});
 
-  const item = await prisma.menuItem.create({
-    data: {
-      tenantId: context.tenantId,
-      categoryId: parsed.data.categoryId,
-      name: parsed.data.name,
-      description: parsed.data.description || null,
-      imageUrl: parsed.data.imageUrl || null,
-      price: new Prisma.Decimal(parsed.data.price),
-      taxRate: new Prisma.Decimal(parsed.data.taxRate),
-      isAvailable: true,
-      displayOrder: parsed.data.displayOrder,
-      variants: parsed.data.variants ? (parsed.data.variants as unknown as Prisma.InputJsonValue) : undefined,
-      addOns: parsed.data.addOns ? (parsed.data.addOns as unknown as Prisma.InputJsonValue) : undefined,
-    },
-  });
+/** SA-MENU-09 — `menu:manage`; `orderedIds` must be exactly the category's active items. */
+export const reorderMenuItemsAction = action(async (input: ReorderMenuItemsInput) => {
+  const ctx = await requireTenant("menu:manage");
+  const { categoryId, orderedIds } = parseInput(reorderMenuItemsSchema, input);
+  return reorderItems(ctx, { categoryId, orderedIds });
+});
 
-  await prisma.auditLog.create({
-    data: {
-      tenantId: context.tenantId,
-      actorUserId: context.userId,
-      action: "MENU_ITEM_CREATE",
-      resourceType: "MENU_ITEM",
-      resourceId: item.id,
-      afterState: { name: item.name, price: item.price.toString() },
-    },
-  });
+/** SA-MENU-10 — `menu:manage`; publishing requires a published category and a sellable price. */
+export const setMenuItemPublishedAction = action(async (input: SetMenuItemPublishedInput) => {
+  const ctx = await requireTenant("menu:manage");
+  const { itemId, published } = parseInput(setMenuItemPublishedSchema, input);
+  return setItemPublished(ctx, itemId, published);
+});
 
-  return {
-    success: true,
-    item: {
-      ...item,
-      price: item.price.toString(),
-      taxRate: item.taxRate.toString(),
-    },
-  };
-}
+/** SA-MENU-11 — `menu:availability:update`: the sold-out toggle (TI-008). */
+export const setMenuItemAvailabilityAction = action(async (input: SetMenuItemAvailabilityInput) => {
+  const ctx = await requireTenant("menu:availability:update");
+  const { itemId, available } = parseInput(setMenuItemAvailabilitySchema, input);
+  return setItemAvailability(ctx, itemId, available);
+});
 
-export async function updateMenuItemAction(input: z.input<typeof UpdateMenuItemSchema>, requestedTenantId?: string) {
-  const session = await getAuthenticatedSession();
-  const context = resolveTenantContext(session, requestedTenantId);
-  requirePermission(context, "menu:manage");
+/** SA-MENU-12 — `menu:manage`: replace-set of variants; omitted ones are archived, not deleted (TI-009). */
+export const replaceMenuItemVariantsAction = action(async (input: ReplaceVariantsInput) => {
+  const ctx = await requireTenant("menu:manage");
+  const data = parseInput(replaceVariantsSchema, input);
+  return replaceVariants(ctx, data);
+});
 
-  const parsed = UpdateMenuItemSchema.safeParse(input);
-  if (!parsed.success) {
-    throw new ValidationError("Invalid menu item update payload", parsed.error.flatten().fieldErrors);
-  }
-
-  const existing = await prisma.menuItem.findUnique({
-    where: { id: parsed.data.id },
-  });
-  assertTenantOwnership(context, existing, "Menu Item");
-
-  const updated = await prisma.menuItem.update({
-    where: { id: parsed.data.id },
-    data: {
-      ...(parsed.data.name && { name: parsed.data.name }),
-      ...(parsed.data.description !== undefined && { description: parsed.data.description || null }),
-      ...(parsed.data.imageUrl !== undefined && { imageUrl: parsed.data.imageUrl || null }),
-      ...(parsed.data.price && { price: new Prisma.Decimal(parsed.data.price) }),
-      ...(parsed.data.taxRate && { taxRate: new Prisma.Decimal(parsed.data.taxRate) }),
-      ...(parsed.data.isAvailable !== undefined && { isAvailable: parsed.data.isAvailable }),
-      ...(parsed.data.displayOrder !== undefined && { displayOrder: parsed.data.displayOrder }),
-      ...(parsed.data.variants !== undefined && { variants: parsed.data.variants as unknown as Prisma.InputJsonValue }),
-      ...(parsed.data.addOns !== undefined && { addOns: parsed.data.addOns as unknown as Prisma.InputJsonValue }),
-    },
-  });
-
-  await prisma.auditLog.create({
-    data: {
-      tenantId: context.tenantId,
-      actorUserId: context.userId,
-      action: "MENU_ITEM_UPDATE",
-      resourceType: "MENU_ITEM",
-      resourceId: updated.id,
-      afterState: { name: updated.name, price: updated.price.toString(), isAvailable: updated.isAvailable },
-    },
-  });
-
-  return {
-    success: true,
-    item: {
-      ...updated,
-      price: updated.price.toString(),
-      taxRate: updated.taxRate.toString(),
-    },
-  };
-}
-
-export async function toggleItemAvailabilityAction(itemId: string, isAvailable: boolean, requestedTenantId?: string) {
-  return updateMenuItemAction({ id: itemId, isAvailable }, requestedTenantId);
-}
-
-export async function deleteMenuItemAction(itemId: string, requestedTenantId?: string) {
-  const session = await getAuthenticatedSession();
-  const context = resolveTenantContext(session, requestedTenantId);
-  requirePermission(context, "menu:manage");
-
-  const existing = await prisma.menuItem.findUnique({
-    where: { id: itemId },
-  });
-  assertTenantOwnership(context, existing, "Menu Item");
-
-  const deactivated = await prisma.menuItem.update({
-    where: { id: itemId },
-    data: { isAvailable: false },
-  });
-
-  await prisma.auditLog.create({
-    data: {
-      tenantId: context.tenantId,
-      actorUserId: context.userId,
-      action: "MENU_ITEM_DEACTIVATE",
-      resourceType: "MENU_ITEM",
-      resourceId: itemId,
-    },
-  });
-
-  return { success: true, item: deactivated };
-}
+/** SA-MENU-13 — `menu:manage`: replace-set of add-ons. */
+export const replaceMenuItemAddonsAction = action(async (input: ReplaceAddonsInput) => {
+  const ctx = await requireTenant("menu:manage");
+  const data = parseInput(replaceAddonsSchema, input);
+  return replaceAddons(ctx, data);
+});

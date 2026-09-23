@@ -1,100 +1,95 @@
 "use server";
 
-import { z } from "zod";
-import { OrderStatus, OrderType } from "@prisma/client";
-import { getAuthenticatedSession } from "@/lib/auth/clerk";
-import { resolveTenantContext, requirePermission } from "@/lib/auth/tenant-context";
+import { requirePermission, requireTenant } from "@/lib/auth/guards";
+import { action } from "@/lib/http/action";
 import {
+  createOrder,
+  getOrderBoard,
   getTenantOrders,
+  orderTransitionPermission,
+  quoteOrder,
+  setOrderCustomer,
+  setOrderPriority,
   updateOrderStatus,
-  createOrderFromCart,
-  CreateOrderPayload,
 } from "@/lib/services/orders";
-import { ValidationError } from "@/lib/errors";
+import { parseInput } from "@/lib/validation/core";
+import {
+  createOrderSchema,
+  listOrdersSchema,
+  orderPollSchema,
+  quoteOrderSchema,
+  setOrderCustomerSchema,
+  setOrderPrioritySchema,
+  updateOrderStatusSchema,
+  type CreateOrderInput,
+  type ListOrdersInput,
+  type OrderPollInput,
+  type QuoteOrderInput,
+  type SetOrderCustomerInput,
+  type SetOrderPriorityInput,
+  type UpdateOrderStatusInput,
+} from "@/lib/validation/orders";
 
-const OrderStatusSchema = z.nativeEnum(OrderStatus);
+/**
+ * Interim order actions (S1-P04-T007; rebuilt in S1-P12). The tenant, actor and role come only from the server-resolved
+ * context; inputs are strict (a `tenantId`, price or total in the body is 422). Results use the ActionResult envelope.
+ */
 
-const CreateOrderSchema = z.object({
-  orderType: z.nativeEnum(OrderType),
-  tableNumber: z.string().optional(),
-  notes: z.string().optional(),
-  customer: z
-    .object({
-      name: z.string().min(1, "Customer name is required"),
-      phone: z.string().optional(),
-      email: z.string().email().optional().or(z.literal("")),
-      notes: z.string().optional(),
-    })
-    .optional(),
-  items: z
-    .array(
-      z.object({
-        menuItemId: z.string().uuid("Invalid menu item ID"),
-        quantity: z.number().int().min(1, "Quantity must be at least 1"),
-        specialInstructions: z.string().optional(),
-        options: z.record(z.any()).optional(),
-      })
-    )
-    .min(1, "Order must contain at least one item"),
+/** LD-ORD-01 (interim) — `order:read`. KITCHEN receives the kitchen projection (security.md §3.3 row 23). */
+export const getOrdersAction = action(async (input?: ListOrdersInput) => {
+  const ctx = await requireTenant("order:read");
+  const filters = parseInput(listOrdersSchema, input ?? {});
+  return { orders: await getTenantOrders(ctx, filters) };
 });
 
-export async function getOrdersAction(
-  filters?: { status?: OrderStatus; search?: string },
-  requestedTenantId?: string
-) {
-  const session = await getAuthenticatedSession();
-  const context = resolveTenantContext(session, requestedTenantId);
+/**
+ * SA-ORD-02 / SA-ORD-03 (interim) — `order:read`, then the permission for the requested target (security.md §3.4):
+ * ACCEPTED `order:accept`, PREPARING/READY `order:kitchen_update`, COMPLETED `order:complete`, CANCELLED `order:cancel`.
+ */
+export const updateOrderStatusAction = action(async (input: UpdateOrderStatusInput) => {
+  const ctx = await requireTenant("order:read");
+  const data = parseInput(updateOrderStatusSchema, input);
+  requirePermission(ctx, orderTransitionPermission(data.status));
+  return updateOrderStatus(ctx, data);
+});
 
-  // Require staff permissions for orders view (or tenant admin/manager/cashier/kitchen/waiter)
-  // Check if role is allowed
-  const orders = await getTenantOrders(context.tenantId, filters);
-  return { success: true, orders };
-}
+/**
+ * SA-ORD-01 — `order:create`, plus `customer:create` for a new customer and `order:accept` when the order is sent
+ * straight to the kitchen. The service prices every line from the tenant's own menu and is idempotent per key.
+ */
+export const createStaffOrderAction = action(async (input: CreateOrderInput) => {
+  const ctx = await requireTenant("order:create");
+  const data = parseInput(createOrderSchema, input);
+  if (data.customer) requirePermission(ctx, "customer:create");
+  if (data.sendToKitchen) requirePermission(ctx, "order:accept");
+  return { order: await createOrder(ctx, data) };
+});
 
-export async function updateOrderStatusAction(
-  orderId: string,
-  nextStatus: OrderStatus,
-  requestedTenantId?: string
-) {
-  const session = await getAuthenticatedSession();
-  const context = resolveTenantContext(session, requestedTenantId);
-  requirePermission(context, "order:update_status");
+/** LD-ORD-01 (S1-P12-T006) — `order:read`. The board's refresh after a mutation; the 10 s poll uses RH-ORD-01. */
+export const getOrderBoardAction = action(async (input?: OrderPollInput) => {
+  const ctx = await requireTenant("order:read");
+  return getOrderBoard(ctx, parseInput(orderPollSchema, input ?? {}));
+});
 
-  const parsedStatus = OrderStatusSchema.safeParse(nextStatus);
-  if (!parsedStatus.success) {
-    throw new ValidationError("Invalid order status requested");
-  }
+/**
+ * SA-ORD-01 companion (S1-P12-T007) — `order:create`. Prices the cart the POS is building and returns decimal
+ * strings; nothing is written. Totals in the browser are always the server's answer, never a client calculation.
+ */
+export const quoteOrderAction = action(async (input: QuoteOrderInput) => {
+  const ctx = await requireTenant("order:create");
+  return quoteOrder(ctx, parseInput(quoteOrderSchema, input));
+});
 
-  const updatedOrder = await updateOrderStatus(
-    context.tenantId,
-    orderId,
-    parsedStatus.data,
-    context.userId
-  );
+/** SA-ORD-06 (S1-P15-T003) — `order:update_meta`; the service refuses HIGH for a role that may not set it. */
+export const setOrderPriorityAction = action(async (input: SetOrderPriorityInput) => {
+  const ctx = await requireTenant("order:update_meta");
+  return setOrderPriority(ctx, parseInput(setOrderPrioritySchema, input));
+});
 
-  return { success: true, order: updatedOrder };
-}
-
-export async function createStaffOrderAction(
-  input: z.input<typeof CreateOrderSchema>,
-  requestedTenantId?: string
-) {
-  const session = await getAuthenticatedSession();
-  const context = resolveTenantContext(session, requestedTenantId);
-  requirePermission(context, "order:create");
-
-  const parsed = CreateOrderSchema.safeParse(input);
-  if (!parsed.success) {
-    throw new ValidationError(
-      "Invalid order payload",
-      parsed.error.flatten().fieldErrors
-    );
-  }
-
-  const order = await createOrderFromCart(
-    context.tenantId,
-    parsed.data as CreateOrderPayload
-  );
-
-  return { success: true, order };
-}
+/** SA-ORD-05 (S1-P15-T003) — `order:update_meta` plus `customer:read` to name a customer at all. */
+export const setOrderCustomerAction = action(async (input: SetOrderCustomerInput) => {
+  const ctx = await requireTenant("order:update_meta");
+  const data = parseInput(setOrderCustomerSchema, input);
+  if (data.customerId !== null) requirePermission(ctx, "customer:read");
+  return setOrderCustomer(ctx, data);
+});

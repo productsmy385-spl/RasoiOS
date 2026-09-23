@@ -1,30 +1,40 @@
 ---
-title: "Architecture Decision Records (ADR) Summary"
+title: "Architecture Decision Records — Index"
 document_type: "ADR_INDEX"
-project: "Restaurant SaaS Platform (RASOIOS)"
+project: "Restaurant SaaS Platform"
 project_owner: "Gopala Krishna"
-status: "APPROVED"
-version: "1.0"
+slice: "SLICE-01"
+status: "PROPOSED"
+version: "2.0"
 created: "2026-09-15"
 last_updated: "2026-09-15"
-author: "Gopala Krishna"
-review_owner: "Gopala Krishna"
-target_slice: "ALL"
-target_start_date: "2026-09-15"
-target_end_date: "2026-11-22"
-priority: "HIGH"
+owner: "Gopala Krishna (Project Owner)"
+planned_start: "2026-09-15"
+planned_finish: "Not scheduled — execution-order plan"
 dependencies: []
-related_documents: ["decisions/RASOIOS-ADR-001.md", "decisions/RASOIOS-ADR-002.md", "decisions/RASOIOS-ADR-003.md", "decisions/RASOIOS-ADR-004.md"]
-related_decisions: ["RASOIOS-ADR-001", "RASOIOS-ADR-002", "RASOIOS-ADR-003", "RASOIOS-ADR-004"]
+related_documents: ["decisions/README.md", "implementation/slice-01/open-questions.md"]
+related_decisions: ["RASOIOS-ADR-001", "RASOIOS-ADR-002", "RASOIOS-ADR-003", "RASOIOS-ADR-004", "RASOIOS-ADR-005", "RASOIOS-ADR-006", "RASOIOS-ADR-007", "RASOIOS-ADR-008", "RASOIOS-ADR-009", "RASOIOS-ADR-010", "RASOIOS-ADR-011", "RASOIOS-ADR-012", "RASOIOS-ADR-013"]
 ---
 
-# RASOIOS Architecture Decision Records (ADR) Summary
+# Architecture Decision Records — Index
 
-This document summarizes the key Architecture Decision Records governing the project. Detailed ADRs are located under [`decisions/`](file:///c:/Users/Gopala%20Krishna/OneDrive/Desktop/RASOIOS/knowledge/decisions/README.md).
+Decisions are never silently replaced. A new decision that changes an older one marks the old one *superseded* or *refined* and links both.
+Architecture changes during implementation require a new ADR (brief §56).
 
-## ADR Overview Index
+| ID | Title | Date | Status | Relationship |
+|---|---|---|---|---|
+| [RASOIOS-ADR-001](decisions/RASOIOS-ADR-001.md) | Technical stack selection (Next.js, TypeScript, PostgreSQL, Prisma, Clerk, Tailwind, Vitest, Railway) | 2026-09-15 | APPROVED | — |
+| [RASOIOS-ADR-002](decisions/RASOIOS-ADR-002.md) | Commercial licence model — no subscription tiers or recurring tenant billing | 2026-09-15 | APPROVED | Locked by owner brief |
+| [RASOIOS-ADR-003](decisions/RASOIOS-ADR-003.md) | Server-side context-derived tenant isolation | 2026-09-15 | APPROVED | Implemented by ADR-006, ADR-008 |
+| [RASOIOS-ADR-004](decisions/RASOIOS-ADR-004.md) | Cloud thermal printing: PostgreSQL queue + polling local agent | 2026-09-15 | APPROVED | Refined by ADR-007 |
+| [RASOIOS-ADR-005](decisions/RASOIOS-ADR-005.md) | Single master implementation slice (SLICE-01) | 2026-09-15 | ACCEPTED | Supersedes eight-slice structure (v1.0 KNOWLEDGE-BASE.md §5) |
+| [RASOIOS-ADR-006](decisions/RASOIOS-ADR-006.md) | Identity, platform role, invite-only membership and active tenant resolution | 2026-09-15 | APPROVED | Implements ADR-003 |
+| [RASOIOS-ADR-007](decisions/RASOIOS-ADR-007.md) | Print agent authentication, job leasing and delivery semantics | 2026-09-15 | APPROVED | Refines ADR-004 |
+| [RASOIOS-ADR-008](decisions/RASOIOS-ADR-008.md) | Tenant-scoped data access layer and database-enforced tenant integrity | 2026-09-15 | APPROVED | Implements ADR-003 |
+| [RASOIOS-ADR-009](decisions/RASOIOS-ADR-009.md) | Operational screen refresh via cursor-based polling | 2026-09-15 | APPROVED | — |
+| [RASOIOS-ADR-010](decisions/RASOIOS-ADR-010.md) | Money, tax calculation, menu modifiers, business day and sequential numbering | 2026-09-15 | APPROVED | — |
+| [RASOIOS-ADR-011](decisions/RASOIOS-ADR-011.md) | Rate limiting, request integrity and webhook verification without new infrastructure | 2026-09-15 | APPROVED | — |
+| [RASOIOS-ADR-012](decisions/RASOIOS-ADR-012.md) | Tenant subdomain routing for public restaurant websites (`slug.<domain>`, `/r/[slug]` kept) | 2026-09-23 | APPROVED | Answers Q-013; refines ADR-003 |
+| [RASOIOS-ADR-013](decisions/RASOIOS-ADR-013.md) | Brand v2 — vibrant glass design language, header navigation, per-tenant theming | 2026-09-23 | APPROVED | Supersedes the palette and console shell of design.md §2.1–2.3/§6 and CLAUDE.md v1 |
 
-1. **[RASOIOS-ADR-001: Technical Stack Selection](file:///c:/Users/Gopala%20Krishna/OneDrive/Desktop/RASOIOS/knowledge/decisions/RASOIOS-ADR-001.md)**: Next.js 15 App Router, TypeScript Strict Mode, PostgreSQL, Prisma ORM, Clerk Authentication, and Railway deployment.
-2. **[RASOIOS-ADR-002: Commercial License Model vs SaaS Subscription Tiers](file:///c:/Users/Gopala%20Krishna/OneDrive/Desktop/RASOIOS/knowledge/decisions/RASOIOS-ADR-002.md)**: Sold strictly as a software product/license. NO subscription tiers (Starter/Pro/Enterprise) or recurring tenant billing.
-3. **[RASOIOS-ADR-003: Server-Side Context-Derived Tenant Isolation](file:///c:/Users/Gopala%20Krishna/OneDrive/Desktop/RASOIOS/knowledge/decisions/RASOIOS-ADR-003.md)**: Zero trust for client-supplied `tenantId`. Server resolves context from Clerk session mapped to PostgreSQL `UserTenant`.
-4. **[RASOIOS-ADR-004: Cloud Thermal Printing Architecture](file:///c:/Users/Gopala%20Krishna/OneDrive/Desktop/RASOIOS/knowledge/decisions/RASOIOS-ADR-004.md)**: Cloud enqueues ESC/POS print jobs in PostgreSQL; lightweight local agent polls endpoint and prints to USB/LAN printers.
+ADR-006…011 were approved by the Project Owner on 2026-09-15 in decision gate S1-P01-T010. The same gate answered Q-004, which added GST receipt presentation to ADR-010 §3.

@@ -1,93 +1,48 @@
 "use server";
 
-import { z } from "zod";
-import { getAuthenticatedSession } from "@/lib/auth/clerk";
-import { resolveTenantContext, requirePermission } from "@/lib/auth/tenant-context";
-import { prisma } from "@/lib/db/prisma";
-import { ValidationError, NotFoundError } from "@/lib/errors";
+import { requireTenant } from "@/lib/auth/guards";
+import { action } from "@/lib/http/action";
+import { getRestaurantSettings, replaceHours, updateOperations, updateProfile } from "@/lib/services/restaurant-settings";
+import { parseInput } from "@/lib/validation/core";
+import {
+  replaceOpeningHoursSchema,
+  updateOperationalSettingsSchema,
+  updateRestaurantProfileSchema,
+  type ReplaceOpeningHoursInput,
+  type UpdateOperationalSettingsInput,
+  type UpdateRestaurantProfileInput,
+} from "@/lib/validation/settings";
 
-const UpdateRestaurantSchema = z.object({
-  name: z.string().min(2, "Restaurant name must be at least 2 characters"),
-  logo: z.string().url("Logo must be a valid URL").optional().or(z.literal("")),
-  description: z.string().optional(),
-  address: z.string().optional(),
-  contactEmail: z.string().email("Invalid contact email").optional().or(z.literal("")),
-  contactPhone: z.string().optional(),
-  openingHours: z.string().optional(),
+/**
+ * Restaurant settings (S1-P07-T001; api.md LD-RST-01, SA-RST-01, SA-RST-03, SA-RST-04). The restaurant is always the
+ * one of the session's tenant: the permission is checked first (security.md §3.3 rows 9–11), then the strict schema
+ * rejects any `tenantId` or unknown key (TI-015…TI-017). Branding and the public website are in `website-actions.ts`,
+ * kitchen sections in `sections-actions.ts`.
+ */
+
+/** LD-RST-01 — `restaurant:read` (every tenant role): profile, hours, kitchen sections, website state, edit flags. */
+export const getRestaurantSettingsAction = action(async () => {
+  const ctx = await requireTenant("restaurant:read");
+  return getRestaurantSettings(ctx);
 });
 
-export type UpdateRestaurantInput = z.infer<typeof UpdateRestaurantSchema>;
+/** SA-RST-01 — `restaurant:update`: name, description, contact, address (`restaurant.profile_updated`). */
+export const updateRestaurantProfileAction = action(async (input: UpdateRestaurantProfileInput) => {
+  const ctx = await requireTenant("restaurant:update");
+  const data = parseInput(updateRestaurantProfileSchema, input);
+  return updateProfile(ctx, data);
+});
 
-export async function updateRestaurantProfileAction(
-  input: UpdateRestaurantInput,
-  requestedTenantId?: string
-) {
-  // 1. Resolve Clerk session
-  const session = await getAuthenticatedSession();
+/** SA-RST-03 — `restaurant:update`: replaces the weekly opening hours (split shifts, overnight closing). */
+export const replaceOpeningHoursAction = action(async (input: ReplaceOpeningHoursInput) => {
+  const ctx = await requireTenant("restaurant:update");
+  const data = parseInput(replaceOpeningHoursSchema, input);
+  return replaceHours(ctx, data);
+});
 
-  // 2. Resolve server-validated TenantContext (Never trust client tenantId)
-  const context = resolveTenantContext(session, requestedTenantId);
-
-  // 3. Verify RBAC permission for managing tenant settings
-  requirePermission(context, "tenant:manage_own");
-
-  // 4. Validate input schema
-  const parsed = UpdateRestaurantSchema.safeParse(input);
-  if (!parsed.success) {
-    throw new ValidationError(
-      "Validation failed for restaurant profile input",
-      parsed.error.flatten().fieldErrors
-    );
-  }
-
-  const { name, logo, description, address, contactEmail, contactPhone, openingHours } = parsed.data;
-
-  // 5. Lookup target restaurant entity under this tenant
-  const existingRestaurant = await prisma.restaurant.findFirst({
-    where: { tenantId: context.tenantId },
-  });
-
-  if (!existingRestaurant) {
-    throw new NotFoundError("Restaurant profile record not found for tenant");
-  }
-
-  // 6. Update database record securely within tenant boundary
-  const updated = await prisma.restaurant.update({
-    where: { id: existingRestaurant.id },
-    data: {
-      name,
-      logo: logo || null,
-      description: description || null,
-      address: address || null,
-      contactEmail: contactEmail || null,
-      contactPhone: contactPhone || null,
-      openingHours: openingHours ? (openingHours as unknown as object) : undefined,
-    },
-  });
-
-  // 7. Write audit log entry
-  await prisma.auditLog.create({
-    data: {
-      tenantId: context.tenantId,
-      actorUserId: context.userId,
-      action: "RESTAURANT_PROFILE_UPDATE",
-      resourceType: "RESTAURANT",
-      resourceId: updated.id,
-      afterState: { name, address, contactEmail },
-    },
-  });
-
-  return {
-    success: true,
-    restaurant: {
-      id: updated.id,
-      name: updated.name,
-      logo: updated.logo,
-      description: updated.description,
-      address: updated.address,
-      contactEmail: updated.contactEmail,
-      contactPhone: updated.contactPhone,
-      openingHours: updated.openingHours,
-    },
-  };
-}
+/** SA-RST-04 — `restaurant:settings:update`: time zone, currency (409 CURRENCY_LOCKED), country, order defaults, GSTIN. */
+export const updateOperationalSettingsAction = action(async (input: UpdateOperationalSettingsInput) => {
+  const ctx = await requireTenant("restaurant:settings:update");
+  const data = parseInput(updateOperationalSettingsSchema, input);
+  return updateOperations(ctx, data);
+});

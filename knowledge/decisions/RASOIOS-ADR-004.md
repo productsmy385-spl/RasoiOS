@@ -29,3 +29,7 @@ Implement a cloud print job queue (`PrintJob`) in PostgreSQL. A lightweight loca
 ## Consequences
 - No public port forwarding or complex network setup required at the restaurant.
 - Print jobs are queueable, retriable, and fully auditable.
+
+## Subsequent decisions
+
+- Refined (not superseded) by RASOIOS-ADR-007 (agent authentication, job leasing, delivery semantics), APPROVED 2026-09-15 (gate S1-P01-T010). The baseline endpoint did not implement authenticated polling (baseline-audit BA-01).

@@ -1,17 +1,14 @@
 "use server";
 
-import { getAuthenticatedSession } from "@/lib/auth/clerk";
-import { resolveTenantContext, requirePermission } from "@/lib/auth/tenant-context";
-import { getTenantSalesAnalytics, Timeframe } from "@/lib/services/analytics";
+import { requireTenant } from "@/lib/auth/guards";
+import { action } from "@/lib/http/action";
+import { getTenantSalesAnalytics } from "@/lib/services/analytics";
+import { parseInput } from "@/lib/validation/core";
+import { analyticsQuerySchema, type AnalyticsQueryInput } from "@/lib/validation/reports";
 
-export async function getAnalyticsAction(
-  timeframe: Timeframe = "30d",
-  requestedTenantId?: string
-) {
-  const session = await getAuthenticatedSession();
-  const context = resolveTenantContext(session, requestedTenantId);
-  requirePermission(context, "reports:view");
-
-  const analytics = await getTenantSalesAnalytics(context.tenantId, timeframe);
-  return { success: true, analytics };
-}
+/** Sales analytics for a timeframe of restaurant business days — `report:read` (security.md §3.3 row 48). */
+export const getAnalyticsAction = action(async (input: AnalyticsQueryInput) => {
+  const ctx = await requireTenant("report:read");
+  const { timeframe } = parseInput(analyticsQuerySchema, input);
+  return getTenantSalesAnalytics(ctx, timeframe);
+});

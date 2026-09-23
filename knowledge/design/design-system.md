@@ -1,30 +1,25 @@
 ---
-title: "Design System Tokens & Component Catalog"
-document_type: "DESIGN_SYSTEM"
-project: "Restaurant SaaS Platform (RASOIOS)"
+title: "Design System (Domain Reference)"
+document_type: "REFERENCE"
+project: "Restaurant SaaS Platform"
 project_owner: "Gopala Krishna"
-status: "APPROVED"
-version: "1.0"
+slice: "SLICE-01"
+status: "PROPOSED"
+version: "2.0"
 created: "2026-09-15"
 last_updated: "2026-09-15"
-author: "Gopala Krishna"
-review_owner: "Gopala Krishna"
-target_slice: "Slice 02"
-target_start_date: "2026-09-23"
-target_end_date: "2026-09-30"
-priority: "HIGH"
+owner: "Gopala Krishna (Project Owner)"
+planned_start: "2026-09-15"
+planned_finish: "Not scheduled — execution-order plan"
 dependencies: []
-related_documents: ["design.md"]
+related_documents: ["../implementation/slice-01/design.md","../implementation/slice-01/frontend.md"]
 related_decisions: []
 ---
 
-# Design System Tokens & Component Catalog
+# Design System
+> **Canonical source:** [`../implementation/slice-01/design.md`](../implementation/slice-01/design.md). This domain file keeps only the durable summary for tokens (§2–§4), icons (§5), status system (§7), components (§8). Detail lives in the canonical
+> file and is not repeated here (knowledge/README.md §Document responsibilities).
 
-## Component Specifications
-1. **Buttons**: `.bg-[#D97706] .hover:bg-[#B45309] .text-white .rounded-xl .shadow-lg .shadow-[#D97706]/20`.
-2. **Glass Panels**: `.bg-[#24201D]/75 .backdrop-blur-md .border .border-[#D97706]/15 .rounded-2xl`.
-3. **Status Badges**:
-   - `NEW`: `.bg-[#D97706]/10 .text-[#D97706] .border-[#D97706]/30`
-   - `PREPARING`: `.bg-amber-500/10 .text-amber-500 .border-amber-500/30`
-   - `READY` / `COMPLETED`: `.bg-[#10B981]/10 .text-[#10B981] .border-[#10B981]/30`
-   - `CANCELLED` / `FAILED`: `.bg-red-500/10 .text-red-500 .border-red-500/30`
+
+One of each: typography, icon, spacing (4 px scale), radius, button (primary/secondary/ghost/destructive/success), form, card, status (icon + label),
+colour and motion systems. Static tests enforce no arbitrary spacing, colours or radii (TC-DS-002).

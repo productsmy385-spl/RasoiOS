@@ -1,37 +1,26 @@
 ---
-title: "Entity Relationship Diagram (ERD)"
-document_type: "ERD"
-project: "Restaurant SaaS Platform (RASOIOS)"
+title: "ERD (Domain Reference)"
+document_type: "REFERENCE"
+project: "Restaurant SaaS Platform"
 project_owner: "Gopala Krishna"
-status: "APPROVED"
-version: "1.0"
+slice: "SLICE-01"
+status: "PROPOSED"
+version: "2.0"
 created: "2026-09-15"
 last_updated: "2026-09-15"
-author: "Gopala Krishna"
-review_owner: "Gopala Krishna"
-target_slice: "Slice 01"
-target_start_date: "2026-09-15"
-target_end_date: "2026-09-22"
-priority: "CRITICAL"
+owner: "Gopala Krishna (Project Owner)"
+planned_start: "2026-09-15"
+planned_finish: "Not scheduled — execution-order plan"
 dependencies: []
-related_documents: ["database.md", "data-dictionary.md"]
-related_decisions: ["ADR-001"]
+related_documents: ["../implementation/slice-01/erd.md"]
+related_decisions: ["RASOIOS-ADR-008"]
 ---
 
-# Entity Relationship Diagram (ERD)
+# Entity Relationship Diagram
+> **Canonical source:** [`../implementation/slice-01/erd.md`](../implementation/slice-01/erd.md). This domain file keeps only the durable summary for entity relationships. Detail lives in the canonical
+> file and is not repeated here (knowledge/README.md §Document responsibilities).
 
-```mermaid
-erDiagram
-    Tenant ||--o{ Restaurant : owns
-    Tenant ||--o{ UserTenant : membership
-    User ||--o{ UserTenant : belongs
-    Tenant ||--o{ MenuCategory : contains
-    MenuCategory ||--o{ MenuItem : holds
-    Tenant ||--o{ DailyMenu : publishes
-    Tenant ||--o{ Order : processes
-    Order ||--o{ OrderItem : details
-    Order ||--o{ KOTTicket : generates
-    Order ||--o{ Transaction : logs
-    Tenant ||--o{ PrintJob : queues
-    Tenant ||--o{ AuditLog : audits
-```
+
+27 entities (plus MEDIA_ASSET if Q-009 approves): TENANT, RESTAURANT, RESTAURANT_HOURS, KITCHEN_SECTION, USER, USER_TENANT, MENU_CATEGORY, MENU_ITEM,
+MENU_ITEM_VARIANT, MENU_ITEM_ADDON, DAILY_MENU, DAILY_MENU_ITEM, CUSTOMER, ORDER, ORDER_ITEM, ORDER_ITEM_ADDON, KOT_TICKET, KOT_ITEM, TRANSACTION,
+BUSINESS_DAY_CLOSE, PRINTER, PRINT_AGENT, PRINT_JOB, AUDIT_LOG, SOCIAL_POST, TENANT_COUNTER, RATE_LIMIT_BUCKET.

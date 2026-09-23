@@ -1,24 +1,23 @@
 ---
-title: "Security & Adversarial Testing Strategy"
-document_type: "SECURITY_TESTING"
-project: "Restaurant SaaS Platform (RASOIOS)"
+title: "Security Testing (Domain Reference)"
+document_type: "REFERENCE"
+project: "Restaurant SaaS Platform"
 project_owner: "Gopala Krishna"
-status: "APPROVED"
-version: "1.0"
+slice: "SLICE-01"
+status: "PROPOSED"
+version: "2.0"
 created: "2026-09-15"
 last_updated: "2026-09-15"
-author: "Gopala Krishna"
-review_owner: "Gopala Krishna"
-target_slice: "Slice 01"
-target_start_date: "2026-09-15"
-target_end_date: "2026-09-22"
-priority: "CRITICAL"
+owner: "Gopala Krishna (Project Owner)"
+planned_start: "2026-09-15"
+planned_finish: "Not scheduled — execution-order plan"
 dependencies: []
-related_documents: ["security.md", "../tests/unit/tenant-context.test.ts"]
-related_decisions: ["ADR-003"]
+related_documents: ["../implementation/slice-01/tenant-isolation-tests.md","../implementation/slice-01/testing.md"]
+related_decisions: []
 ---
 
-# Security & Adversarial Testing Strategy
+# Security Testing
+> **Canonical sources:** [`tenant-isolation-tests.md`](../implementation/slice-01/tenant-isolation-tests.md) (TI-001…TI-062, ADV-001…ADV-030) and [`testing.md`](../implementation/slice-01/testing.md) §5–§6.
 
-- **Mandatory Adversarial Tests**: Automated tests under `tests/unit/tenant-context.test.ts` simulate cross-tenant access, invalid sessions, suspended users, and suspended tenants.
-- **Pass Gate**: All security tests must pass 100% prior to any release gate approval.
+v1.0 stated that the adversarial tests live in `tests/unit/tenant-context.test.ts`. That file tests the resolver with mocked data only (baseline-audit §1).
+Security suites now run against a real PostgreSQL database with two tenants, are required CI checks, and cannot be skipped at release.

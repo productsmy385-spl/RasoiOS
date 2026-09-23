@@ -1,191 +1,129 @@
-"use client";
-
-import { useEffect, useState, useTransition } from "react";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { PageHeader } from "@/components/layout/page-header";
+import { NewCustomerButton } from "@/components/customers/customer-dialogs";
+import { EmptyState } from "@/components/states/empty-state";
+import { ErrorState } from "@/components/states/error-state";
+import { Badge } from "@/components/ui/badge";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { FilterBar, type FilterDefinition } from "@/components/ui/filter-bar";
+import { requireTenantPage } from "@/lib/auth/guards";
+import { hasPermission } from "@/lib/auth/permissions";
+import type { CustomerListItemDto } from "@/lib/data/customers";
+import { formatInZone, formatMoney } from "@/lib/ui/format";
+import { DOMAIN_ICONS } from "@/lib/ui/icons";
 import { getCustomersAction } from "./actions";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Search, Users, Phone, Mail, ShoppingBag, Calendar, RefreshCw } from "lucide-react";
 
-interface CustomerRecord {
-  id: string;
-  name: string;
-  phone: string | null;
-  email: string | null;
-  notes: string | null;
-  createdAt: string | Date;
-  _count: {
-    orders: number;
-  };
-  orders: Array<{
-    createdAt: string | Date;
-    totalAmount: any;
-  }>;
-}
+export const dynamic = "force-dynamic";
 
-export default function StaffCustomersPage() {
-  const [customers, setCustomers] = useState<CustomerRecord[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+export const metadata: Metadata = { title: "Customers" };
 
-  const [isPending, startTransition] = useTransition();
+const BASE_PATH = "/restaurant/customers";
+const LIST_LIMIT = 200;
 
-  function fetchCustomers() {
-    setIsLoading(true);
-    startTransition(async () => {
-      try {
-        const res = await getCustomersAction(searchQuery.trim() || undefined);
-        if (res.success) {
-          setCustomers(res.customers as any);
-        }
-      } catch (err: any) {
-        setErrorMsg(err.message || "Failed to load customer records");
-      } finally {
-        setIsLoading(false);
-      }
-    });
-  }
+type SearchParams = Record<string, string | string[] | undefined>;
+const single = (value: string | string[] | undefined) => (typeof value === "string" && value.trim() ? value.trim() : undefined);
 
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
+/**
+ * `/restaurant/customers` (S1-P13-T003; api.md LD-CUS-01). The list is this restaurant's own: the loader takes the
+ * tenant from the session, and there is nothing in this URL that could point at another one.
+ *
+ * Money is formatted from the decimal string the loader returns, in the restaurant's own currency — the baseline
+ * printed a dollar sign whatever the restaurant charged in (BA-27 family). Notes are staff-only, so they are shown
+ * here but never leave the console.
+ */
+export default async function CustomersPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const ctx = await requireTenantPage("customer:read");
+  const params = await searchParams;
+  const query = single(params.q);
+  const includeArchived = single(params.archived) === "true";
+
+  const result = await getCustomersAction({ query, includeArchived, limit: LIST_LIMIT });
+  // The tenant context carries the restaurant's currency and zone, not its country, so money is formatted in the
+  // default locale with the restaurant's currency — the same way every other console screen does it (ADR-010 §1).
+  const money = (amount: string) => formatMoney(amount, ctx.restaurant.currencyCode);
+
+  const filters: FilterDefinition[] = [
+    { type: "search", name: "q", label: "Search customers", placeholder: "Name, phone or email" },
+    { type: "select", name: "archived", label: "Archived", allLabel: "Active customers", options: [{ value: "true", label: "Include archived" }] },
+  ];
+
+  const columns: DataTableColumn<CustomerListItemDto>[] = [
+    {
+      key: "name",
+      header: "Customer",
+      primary: true,
+      cell: (customer) => (
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <Link href={`${BASE_PATH}/${customer.id}`} className="truncate text-subheading text-fg-primary hover:text-fg-accent" title={customer.fullName}>
+            {customer.fullName}
+          </Link>
+          {customer.isArchived && <Badge tone="neutral">Archived</Badge>}
+        </div>
+      ),
+      text: (customer) => customer.fullName,
+    },
+    { key: "phone", header: "Phone", text: (customer) => customer.phoneE164 ?? "—" },
+    { key: "email", header: "Email", text: (customer) => customer.email ?? "—", truncate: true },
+    { key: "orders", header: "Orders", numeric: true, text: (customer) => String(customer.orderCount) },
+    {
+      key: "lastOrder",
+      header: "Last order",
+      numeric: true,
+      cell: (customer) =>
+        customer.lastOrder ? (
+          <span className="flex flex-col items-end">
+            <span className="text-body text-fg-primary">{money(customer.lastOrder.totalAmount)}</span>
+            <span className="text-caption text-fg-secondary">{formatInZone(customer.lastOrder.createdAt, ctx.restaurant.timezone, "date")}</span>
+          </span>
+        ) : (
+          "—"
+        ),
+      text: (customer) => (customer.lastOrder ? money(customer.lastOrder.totalAmount) : "—"),
+    },
+  ];
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#3D3732] pb-5">
-        <div>
-          <h1 className="text-2xl font-bold font-display text-[#F3F1EE]">
-            Customer CRM Registry
-          </h1>
-          <p className="text-xs text-[#A8A29E] mt-1">
-            Tenant-isolated customer profiles, contact info, and lifetime order totals
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button
-            onClick={fetchCustomers}
-            disabled={isLoading || isPending}
-            variant="secondary"
-            size="sm"
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-        </div>
-      </div>
+    <div className="mx-auto flex w-full max-w-5xl flex-col">
+      <PageHeader
+        title="Customers"
+        description="The people who order here, with what they last spent. Their details never leave this restaurant."
+        actions={<NewCustomerButton can={hasPermission(ctx, "customer:create")} />}
+      />
 
-      {errorMsg && (
-        <div className="p-4 bg-red-950/40 text-red-400 border border-red-500/30 rounded-xl text-sm flex items-center justify-between">
-          <span>{errorMsg}</span>
-          <button onClick={() => setErrorMsg(null)} className="text-red-400 hover:text-white">
-            ✕
-          </button>
-        </div>
-      )}
-
-      {/* Search Bar */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 absolute left-3 top-3 text-[#A8A29E]" />
-          <Input
-            placeholder="Search customers by name, phone, or email..."
-            className="pl-9 text-xs"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && fetchCustomers()}
+      {result.ok ? (
+        <div className="flex flex-col gap-6">
+          <FilterBar filters={filters} resetParams={[]} />
+          <DataTable
+            caption="Customers"
+            columns={columns}
+            rows={result.data.customers}
+            getRowKey={(customer) => customer.id}
+            empty={
+              query || includeArchived ? (
+                <EmptyState
+                  icon={DOMAIN_ICONS.customers}
+                  title="No customers match this search"
+                  description="Try part of a name, the last digits of a phone number, or clear the search."
+                  action={{ href: BASE_PATH, label: "Clear search" }}
+                />
+              ) : (
+                <EmptyState
+                  icon={DOMAIN_ICONS.customers}
+                  title="No customers yet"
+                  description="Add someone at the counter, or they appear here as soon as an order is taken with their details."
+                />
+              )
+            }
           />
+          {result.data.customers.length >= LIST_LIMIT && (
+            <p className="text-caption text-fg-secondary">
+              Showing the {LIST_LIMIT} newest customers. Search by name, phone or email to find someone older than that.
+            </p>
+          )}
         </div>
-        <Button onClick={fetchCustomers} variant="primary" size="sm">
-          Search
-        </Button>
-      </div>
-
-      {/* Customers Table / Grid */}
-      {isLoading && customers.length === 0 ? (
-        <div className="text-center py-16 space-y-3">
-          <RefreshCw className="w-8 h-8 text-amber-500 animate-spin mx-auto" />
-          <p className="text-sm text-[#A8A29E]">Loading customer records...</p>
-        </div>
-      ) : customers.length === 0 ? (
-        <Card className="p-12 text-center space-y-3 bg-[#24201D] border-[#3D3732]">
-          <Users className="w-10 h-10 text-[#A8A29E] mx-auto" />
-          <h3 className="text-base font-semibold text-[#F3F1EE]">No Customers Recorded</h3>
-          <p className="text-xs text-[#A8A29E]">
-            Customer profiles will automatically be populated when patrons place orders with contact info.
-          </p>
-        </Card>
       ) : (
-        <div className="bg-[#24201D] border border-[#3D3732] rounded-xl overflow-hidden shadow-xl">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-[#1A1715] text-[#A8A29E] uppercase tracking-wider font-semibold border-b border-[#3D3732]">
-              <tr>
-                <th className="px-5 py-3.5">Customer Name</th>
-                <th className="px-5 py-3.5">Phone</th>
-                <th className="px-5 py-3.5">Email</th>
-                <th className="px-5 py-3.5 text-center">Total Orders</th>
-                <th className="px-5 py-3.5 text-right">Last Order</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#3D3732] text-[#F3F1EE]">
-              {customers.map((c) => {
-                const lastOrder = c.orders[0];
-                return (
-                  <tr key={c.id} className="hover:bg-[#2D2825] transition-colors">
-                    <td className="px-5 py-4 font-semibold text-sm">
-                      <div>{c.name}</div>
-                      {c.notes && (
-                        <div className="text-[11px] text-[#A8A29E] font-normal italic">
-                          &quot;{c.notes}&quot;
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-5 py-4 font-mono text-[#A8A29E]">
-                      {c.phone ? (
-                        <span className="flex items-center gap-1.5">
-                          <Phone className="w-3.5 h-3.5 text-amber-400" />
-                          {c.phone}
-                        </span>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td className="px-5 py-4 font-mono text-[#A8A29E]">
-                      {c.email ? (
-                        <span className="flex items-center gap-1.5">
-                          <Mail className="w-3.5 h-3.5 text-amber-400" />
-                          {c.email}
-                        </span>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td className="px-5 py-4 text-center font-bold font-mono">
-                      <span className="px-2.5 py-1 bg-amber-950/40 text-amber-400 rounded-full border border-amber-500/30">
-                        {c._count.orders} orders
-                      </span>
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      {lastOrder ? (
-                        <div>
-                          <div className="font-mono font-bold text-amber-400">
-                            ${parseFloat(String(lastOrder.totalAmount)).toFixed(2)}
-                          </div>
-                          <div className="text-[10px] text-[#A8A29E]">
-                            {new Date(lastOrder.createdAt).toLocaleDateString()}
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-[#A8A29E]">—</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <ErrorState requestId={result.error.requestId} message={result.error.message} />
       )}
     </div>
   );

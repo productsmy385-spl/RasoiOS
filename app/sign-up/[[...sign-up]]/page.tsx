@@ -1,34 +1,48 @@
+import type { Metadata } from "next";
 import { SignUp } from "@clerk/nextjs";
+import { MailCheck } from "lucide-react";
+import { AuthLayout } from "@/components/layout/auth-layout";
+import { EmptyState } from "@/components/states/empty-state";
+import { signUpAppearance } from "@/lib/ui/clerk-appearance";
 
-export default function SignUpPage() {
-  return (
-    <main className="min-h-screen bg-[#1A1715] flex items-center justify-center p-6">
-      <div className="w-full max-w-md space-y-6 text-center">
-        <div className="space-y-2">
-          <h1 className="font-display text-3xl font-bold text-[#FBF9F5]">
-            Create Account
-          </h1>
-          <p className="text-sm text-gray-400">
-            Sign up with Email OTP verification
-          </p>
-        </div>
-        <div className="flex justify-center">
-          <SignUp
-            appearance={{
-              elements: {
-                card: "bg-[#24201D] border border-[#38322E] shadow-2xl rounded-2xl",
-                headerTitle: "text-[#FBF9F5] font-display",
-                headerSubtitle: "text-gray-400",
-                formButtonPrimary:
-                  "bg-[#D97706] hover:bg-[#B45309] text-white shadow-lg shadow-[#D97706]/20 border-none",
-                formFieldInput:
-                  "bg-[#1A1715] border-[#38322E] text-[#F3F4F6] focus:border-[#D97706]",
-                footerActionLink: "text-[#D97706] hover:underline",
-              },
-            }}
+export const metadata: Metadata = { title: "Accept your invitation — RASOIOS" };
+
+/** After accepting an invitation the new user lands on their role home (see /sign-in/landing). */
+const AFTER_SIGN_UP = "/sign-in/landing";
+
+type SearchParams = Record<string, string | string[] | undefined>;
+
+/**
+ * /sign-up (S1-P03-T005, ADR-006, SC-AUTH-05): accounts are created only from a Clerk invitation. The invitation email
+ * links here with a `__clerk_ticket`; without one, a visitor sees "Access is by invitation" and no sign-up form.
+ * Clerk's own follow-up steps (/sign-up/verify-email-address, /sign-up/continue) keep rendering the form. The Clerk
+ * instance is also set to restricted sign-up, so this page is guidance, not the security boundary.
+ */
+export default async function SignUpPage({ params, searchParams }: { params: Promise<{ "sign-up"?: string[] }>; searchParams: Promise<SearchParams> }) {
+  const [{ "sign-up": step = [] }, query] = await Promise.all([params, searchParams]);
+  const ticket = typeof query.__clerk_ticket === "string" && query.__clerk_ticket.length > 0;
+  const continuingSignUp = step.length > 0;
+
+  if (!ticket && !continuingSignUp) {
+    return (
+      <AuthLayout title="Join your restaurant on RASOIOS">
+        <div className="rounded-2xl border border-border-subtle bg-card shadow-e1">
+          <EmptyState
+            icon={MailCheck}
+            title="Access is by invitation"
+            description="Your restaurant administrator sends you an invitation email. Open the link in that email to set up your account."
+            action={{ href: "/sign-in", label: "Sign in" }}
           />
         </div>
+      </AuthLayout>
+    );
+  }
+
+  return (
+    <AuthLayout title="Accept your invitation" description="Confirm your email to join your restaurant on RASOIOS.">
+      <div className="flex justify-center">
+        <SignUp path="/sign-up" routing="path" forceRedirectUrl={AFTER_SIGN_UP} signInForceRedirectUrl={AFTER_SIGN_UP} appearance={signUpAppearance} />
       </div>
-    </main>
+    </AuthLayout>
   );
 }

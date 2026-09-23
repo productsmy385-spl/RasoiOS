@@ -1,42 +1,31 @@
 import type { Metadata } from "next";
+import { Playfair_Display, Plus_Jakarta_Sans } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 import { PwaRegister } from "@/components/pwa-register";
 
+// Brand fonts, self-hosted at build time by next/font: no runtime request to Google (S1-P08-T002, SC-HDR-02).
+const display = Playfair_Display({ subsets: ["latin"], weight: ["600", "700"], display: "swap", variable: "--font-display" });
+const sans = Plus_Jakarta_Sans({ subsets: ["latin"], weight: ["400", "500", "600", "700"], display: "swap", variable: "--font-sans" });
+
 export const metadata: Metadata = {
-  title: "RASOIOS — Premium Multi-Tenant Restaurant Platform",
-  description:
-    "Production-grade restaurant SaaS platform with digital ordering, kitchen workflow, print agent, POS, and multi-tenant security.",
+  title: "RASOIOS — Restaurant Operations",
+  description: "Menu management, counter ordering, kitchen tickets and thermal printing for restaurants.",
   manifest: "/manifest.json",
 };
 
-const rawKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
-const isRealClerkKey = Boolean(
-  rawKey &&
-    !rawKey.includes("placeholder") &&
-    !rawKey.includes("example.com")
-);
-
+// ClerkProvider always wraps the app (S1-P03-T002). Keys are validated at server start (lib/env.ts), so there is
+// no unauthenticated fallback rendering path. Brand v2 is dark everywhere the platform speaks — landing, auth,
+// console, admin and kitchen; a restaurant's own public page opts into data-theme="light" (ADR-013 §6).
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  if (!isRealClerkKey) {
-    return (
-      <html lang="en" className="dark">
-        <body className="bg-[#1A1715] text-[#F3F4F6] antialiased selection:bg-[#D97706] selection:text-white">
-          <PwaRegister />
-          {children}
-        </body>
-      </html>
-    );
-  }
-
   return (
-    <ClerkProvider publishableKey={rawKey}>
-      <html lang="en" className="dark">
-        <body className="bg-[#1A1715] text-[#F3F4F6] antialiased selection:bg-[#D97706] selection:text-white">
+    <ClerkProvider afterSignOutUrl="/sign-in">
+      <html lang="en" className={`dark ${display.variable} ${sans.variable}`} data-theme="dark">
+        <body className="bg-canvas text-fg-primary antialiased selection:bg-action-primary selection:text-action-primary-fg">
           <PwaRegister />
           {children}
         </body>

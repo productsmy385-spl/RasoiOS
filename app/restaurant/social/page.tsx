@@ -1,32 +1,43 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { SocialPostStatus } from "@prisma/client";
+import { SocialChannel, SocialPostStatus } from "@prisma/client";
 import {
   createSocialPostAction,
   getSocialPostsAction,
-  updateSocialPostStatusAction,
 } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Share2, Calendar, Send, Image, RefreshCw, CheckCircle, Clock } from "lucide-react";
+import { Share2, RefreshCw, Link2 } from "lucide-react";
 
 interface SocialPostData {
   id: string;
-  content: string;
-  mediaUrl: string | null;
+  caption: string;
+  channel: SocialChannel;
+  shareUrl: string;
   status: SocialPostStatus;
-  scheduledAt: string | null;
-  createdAt: string | Date;
+  postedUrl: string | null;
+  createdAt: string;
+}
+
+const CHANNEL_LABELS: Record<SocialChannel, string> = {
+  INSTAGRAM: "Instagram",
+  FACEBOOK: "Facebook",
+  WHATSAPP: "WhatsApp",
+  OTHER: "Other",
+};
+
+function statusVariant(status: SocialPostStatus): "success" | "warning" | "outline" {
+  if (status === "MARKED_POSTED") return "success";
+  if (status === "READY") return "warning";
+  return "outline";
 }
 
 export default function SocialMarketingPage() {
   const [posts, setPosts] = useState<SocialPostData[]>([]);
-  const [content, setContent] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
-  const [scheduledAt, setScheduledAt] = useState("");
+  const [caption, setCaption] = useState("");
+  const [channel, setChannel] = useState<SocialChannel>(SocialChannel.INSTAGRAM);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,8 +51,10 @@ export default function SocialMarketingPage() {
     startTransition(async () => {
       try {
         const res = await getSocialPostsAction();
-        if (res.success) {
-          setPosts(res.posts as any);
+        if (res.ok) {
+          setPosts(res.data);
+        } else {
+          setErrorMsg(res.error.message);
         }
       } catch (err: any) {
         setErrorMsg(err.message || "Failed to load social posts");
@@ -57,7 +70,7 @@ export default function SocialMarketingPage() {
 
   async function handleCreatePost(e: React.FormEvent) {
     e.preventDefault();
-    if (!content.trim()) return;
+    if (!caption.trim()) return;
 
     setIsSubmitting(true);
     setErrorMsg(null);
@@ -65,17 +78,16 @@ export default function SocialMarketingPage() {
 
     try {
       const res = await createSocialPostAction({
-        content: content.trim(),
-        imageUrl: imageUrl.trim() || undefined,
-        scheduledAt: scheduledAt || undefined,
+        caption: caption.trim(),
+        channel,
       });
 
-      if (res.success) {
-        setSuccessMsg("Promotional social post created successfully!");
-        setContent("");
-        setImageUrl("");
-        setScheduledAt("");
+      if (res.ok) {
+        setSuccessMsg("Draft saved. Share it from your own account when ready.");
+        setCaption("");
         fetchPosts();
+      } else {
+        setErrorMsg(res.error.message);
       }
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to create social post");
@@ -84,33 +96,20 @@ export default function SocialMarketingPage() {
     }
   }
 
-  async function handleStatusChange(postId: string, status: SocialPostStatus) {
-    try {
-      setErrorMsg(null);
-      const res = await updateSocialPostStatusAction(postId, status);
-      if (res.success) {
-        setSuccessMsg(`Post status updated to ${status}`);
-        fetchPosts();
-      }
-    } catch (err: any) {
-      setErrorMsg(err.message || "Failed to update post status");
-    }
-  }
-
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#3D3732] pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border-subtle pb-5">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-amber-500/10 text-amber-400 rounded-2xl border border-amber-500/20">
+          <div className="p-3 bg-action-primary/10 text-fg-accent rounded-2xl border border-action-primary/20">
             <Share2 className="w-7 h-7" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold font-display text-[#F3F1EE]">
-              Social Marketing & Promo Sharing
+            <h1 className="text-2xl font-bold font-display text-fg-primary">
+              Social Sharing
             </h1>
-            <p className="text-xs text-[#A8A29E]">
-              Compose daily menu cards, special offer announcements, and social campaigns
+            <p className="text-xs text-fg-secondary">
+              Draft captions for your menu and share them from your own social accounts
             </p>
           </div>
         </div>
@@ -129,18 +128,18 @@ export default function SocialMarketingPage() {
       </div>
 
       {errorMsg && (
-        <div className="p-4 bg-red-950/40 text-red-400 border border-red-500/30 rounded-xl text-sm flex items-center justify-between">
+        <div className="p-4 bg-status-danger/40 text-status-danger border border-status-danger/30 rounded-xl text-sm flex items-center justify-between">
           <span>{errorMsg}</span>
-          <button onClick={() => setErrorMsg(null)} className="text-red-400 hover:text-white">
+          <button onClick={() => setErrorMsg(null)} className="text-status-danger hover:text-fg-primary">
             ✕
           </button>
         </div>
       )}
 
       {successMsg && (
-        <div className="p-4 bg-emerald-950/40 text-emerald-400 border border-emerald-500/30 rounded-xl text-sm flex items-center justify-between">
+        <div className="p-4 bg-status-success/40 text-status-success border border-status-success/30 rounded-xl text-sm flex items-center justify-between">
           <span>{successMsg}</span>
-          <button onClick={() => setSuccessMsg(null)} className="text-emerald-400 hover:text-white">
+          <button onClick={() => setSuccessMsg(null)} className="text-status-success hover:text-fg-primary">
             ✕
           </button>
         </div>
@@ -148,40 +147,40 @@ export default function SocialMarketingPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Composer Form */}
-        <Card className="p-6 space-y-4 bg-[#24201D] border-[#3D3732] lg:col-span-1 h-fit">
-          <h2 className="text-lg font-bold font-display text-white border-b border-[#3D3732] pb-3">
-            Compose New Announcement
+        <Card className="p-6 space-y-4 bg-card border-border-subtle lg:col-span-1 h-fit">
+          <h2 className="text-lg font-bold font-display text-fg-primary border-b border-border-subtle pb-3">
+            New Caption
           </h2>
 
           <form onSubmit={handleCreatePost} className="space-y-4">
             <div>
-              <label className="text-xs text-[#A8A29E]">Post Content / Offer Details *</label>
+              <label htmlFor="social-caption" className="text-xs text-fg-secondary">Caption *</label>
               <textarea
+                id="social-caption"
                 required
                 rows={4}
-                placeholder="e.g. 🌟 Chef's Daily Special: Tandoori Murgh Makhani is served today! Enjoy 10% off on all dine-in orders!"
-                className="w-full mt-1 p-3 bg-[#1A1715] border border-[#3D3732] rounded-xl text-xs text-[#F3F1EE] focus:outline-none focus:border-amber-500"
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
+                maxLength={2200}
+                placeholder="Today's special: Tandoori Murgh Makhani. See the full menu at the link."
+                className="w-full mt-1 p-3 bg-canvas border border-border-subtle rounded-xl text-xs text-fg-primary focus:outline-none focus:border-action-primary"
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
               />
             </div>
 
             <div>
-              <label className="text-xs text-[#A8A29E]">Banner Image URL (Optional)</label>
-              <Input
-                placeholder="https://images.unsplash.com/photo-..."
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="text-xs text-[#A8A29E]">Schedule Date & Time (Optional)</label>
-              <Input
-                type="datetime-local"
-                value={scheduledAt}
-                onChange={(e) => setScheduledAt(e.target.value)}
-              />
+              <label htmlFor="social-channel" className="text-xs text-fg-secondary">Intended channel</label>
+              <select
+                id="social-channel"
+                className="w-full mt-1 p-2.5 bg-canvas border border-border-subtle rounded-xl text-xs text-fg-primary focus:outline-none focus:border-action-primary"
+                value={channel}
+                onChange={(e) => setChannel(e.target.value as SocialChannel)}
+              >
+                {Object.values(SocialChannel).map((value) => (
+                  <option key={value} value={value}>
+                    {CHANNEL_LABELS[value]}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <Button
@@ -190,28 +189,28 @@ export default function SocialMarketingPage() {
               variant="primary"
               className="w-full py-2.5 font-bold"
             >
-              {isSubmitting ? "Creating Post..." : "Create Promo Post"}
+              {isSubmitting ? "Saving..." : "Save Draft"}
             </Button>
           </form>
         </Card>
 
         {/* Posts List */}
         <div className="lg:col-span-2 space-y-4">
-          <h2 className="text-lg font-bold font-display text-white border-b border-[#3D3732] pb-3">
-            Promotional Posts Campaign Log ({posts.length})
+          <h2 className="text-lg font-bold font-display text-fg-primary border-b border-border-subtle pb-3">
+            Drafts and Shared Posts ({posts.length})
           </h2>
 
           {isLoading && posts.length === 0 ? (
             <div className="text-center py-16 space-y-3">
-              <RefreshCw className="w-8 h-8 text-amber-500 animate-spin mx-auto" />
-              <p className="text-sm text-[#A8A29E]">Loading social posts...</p>
+              <RefreshCw className="w-8 h-8 text-fg-accent animate-spin mx-auto" />
+              <p className="text-sm text-fg-secondary">Loading posts...</p>
             </div>
           ) : posts.length === 0 ? (
-            <Card className="p-12 text-center space-y-3 bg-[#24201D] border-[#3D3732]">
-              <Share2 className="w-10 h-10 text-[#A8A29E] mx-auto" />
-              <h3 className="text-base font-semibold text-[#F3F1EE]">No Marketing Posts</h3>
-              <p className="text-xs text-[#A8A29E]">
-                Compose your first promotional daily announcement to share across social channels.
+            <Card className="p-12 text-center space-y-3 bg-card border-border-subtle">
+              <Share2 className="w-10 h-10 text-fg-secondary mx-auto" />
+              <h3 className="text-base font-semibold text-fg-primary">No posts yet</h3>
+              <p className="text-xs text-fg-secondary">
+                Write a caption for today&apos;s menu to get started.
               </p>
             </Card>
           ) : (
@@ -219,64 +218,47 @@ export default function SocialMarketingPage() {
               {posts.map((post) => (
                 <Card
                   key={post.id}
-                  className="p-5 space-y-3 bg-[#24201D] border-[#3D3732]"
+                  className="p-5 space-y-3 bg-card border-border-subtle"
                 >
-                  <div className="flex items-center justify-between border-b border-[#3D3732] pb-2">
+                  <div className="flex items-center justify-between border-b border-border-subtle pb-2">
                     <div className="flex items-center gap-2">
-                      <Badge
-                        variant={
-                          post.status === "PUBLISHED"
-                            ? "success"
-                            : post.status === "SCHEDULED"
-                            ? "warning"
-                            : "outline"
-                        }
-                      >
-                        {post.status}
+                      <Badge variant={statusVariant(post.status)}>
+                        {post.status.replace("_", " ")}
                       </Badge>
-                      <span className="text-[11px] font-mono text-[#A8A29E]">
-                        {new Date(post.createdAt).toLocaleDateString()}
+                      <span className="text-caption tabular-nums text-fg-secondary">
+                        {CHANNEL_LABELS[post.channel]} • {new Date(post.createdAt).toLocaleDateString()}
                       </span>
                     </div>
 
-                    {post.scheduledAt && (
-                      <span className="text-xs text-amber-400 flex items-center gap-1 font-mono">
-                        <Clock className="w-3.5 h-3.5" /> Scheduled for:{" "}
-                        {new Date(post.scheduledAt).toLocaleString()}
-                      </span>
-                    )}
+                    <a
+                      href={post.shareUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-fg-accent flex items-center gap-1 tabular-nums hover:underline"
+                    >
+                      <Link2 className="w-3.5 h-3.5" /> {post.shareUrl}
+                    </a>
                   </div>
 
-                  <p className="text-sm text-[#F3F1EE] leading-relaxed whitespace-pre-wrap">
-                    {post.content}
+                  <p className="text-sm text-fg-primary leading-relaxed whitespace-pre-wrap">
+                    {post.caption}
                   </p>
 
-                  {post.mediaUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={post.mediaUrl}
-                      alt="Social Banner"
-                      className="w-full max-h-48 object-cover rounded-xl border border-[#3D3732]"
-                    />
+                  {post.postedUrl && (
+                    <a
+                      href={post.postedUrl}
+                      target="_blank"
+                      rel="noopener noreferrer nofollow"
+                      className="text-xs text-fg-secondary hover:text-fg-primary underline"
+                    >
+                      View shared post
+                    </a>
                   )}
 
-                  <div className="pt-2 border-t border-[#3D3732] flex items-center justify-between">
-                    <span className="text-[10px] text-[#A8A29E] font-mono">
+                  <div className="pt-2 border-t border-border-subtle flex items-center justify-between">
+                    <span className="text-caption text-fg-secondary tabular-nums">
                       ID: {post.id.slice(0, 8)}
                     </span>
-
-                    <div className="flex items-center gap-2">
-                      {post.status !== "PUBLISHED" && (
-                        <Button
-                          size="sm"
-                          variant="primary"
-                          className="bg-emerald-600 hover:bg-emerald-500"
-                          onClick={() => handleStatusChange(post.id, SocialPostStatus.PUBLISHED)}
-                        >
-                          <Send className="w-3.5 h-3.5 mr-1" /> Publish Now
-                        </Button>
-                      )}
-                    </div>
                   </div>
                 </Card>
               ))}

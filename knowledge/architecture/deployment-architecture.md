@@ -1,27 +1,27 @@
 ---
-title: "Deployment Architecture & Railway Specification"
-document_type: "DEPLOYMENT_SPEC"
-project: "Restaurant SaaS Platform (RASOIOS)"
+title: "Deployment Architecture"
+document_type: "REFERENCE"
+project: "Restaurant SaaS Platform"
 project_owner: "Gopala Krishna"
-status: "APPROVED"
-version: "1.0"
+slice: "SLICE-01"
+status: "PROPOSED"
+version: "2.0"
 created: "2026-09-15"
 last_updated: "2026-09-15"
-author: "Gopala Krishna"
-review_owner: "Gopala Krishna"
-target_slice: "Slice 08"
-target_start_date: "2026-11-13"
-target_end_date: "2026-11-22"
-priority: "CRITICAL"
+owner: "Gopala Krishna (Project Owner)"
+planned_start: "2026-09-15"
+planned_finish: "Not scheduled — execution-order plan"
 dependencies: []
-related_documents: ["architecture.md"]
-related_decisions: ["ADR-001"]
+related_documents: ["../implementation/slice-01/deployment.md"]
+related_decisions: ["RASOIOS-ADR-001"]
 ---
 
-# Deployment Architecture & Railway Specification
+# Deployment Architecture
+> **Canonical source:** [`../implementation/slice-01/deployment.md`](../implementation/slice-01/deployment.md). This domain file keeps only the durable summary for deployment topology and procedures. Detail lives in the canonical
+> file and is not repeated here (knowledge/README.md §Document responsibilities).
 
-- **Hosting Platform**: Railway Application Service + Railway Managed PostgreSQL.
-- **Build Command**: `npm run build`
-- **Start Command**: `npm run start`
-- **Database Migrations**: Executed via `npx prisma migrate deploy` in production release pipeline.
-- **Environment Variables**: Managed securely via Railway secret store. Secrets never committed to Git.
+
+- Railway application service plus Railway PostgreSQL, for staging (auto-deploy from `main`) and production (tagged release with approval).
+- Health check path `/api/ready` (database-aware). `/api/health` for liveness.
+- Migrations run via `prisma migrate deploy` only, after a pre-release backup in production.
+- Secrets only in Railway variables, validated at startup by `lib/env.ts`.
