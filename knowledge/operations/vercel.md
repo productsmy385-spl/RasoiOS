@@ -34,7 +34,7 @@ fails loudly rather than serving a half-configured app.
 
 | Variable | Required | Value |
 |---|---|---|
-| `DATABASE_URL` | Yes | `postgresql://…?sslmode=require` |
+| `DATABASE_URL` | Yes | `postgresql://…?sslmode=require`. On Vercel Postgres (Neon) this must be the **pooled** endpoint — the one Vercel exposes as `POSTGRES_PRISMA_URL`, host `…-pooler.…`. Each serverless invocation opens its own connection, so the unpooled endpoint exhausts `max_connections` under any real load |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Yes | Clerk instance key |
 | `CLERK_SECRET_KEY` | Yes | Clerk instance secret |
 | `CLERK_WEBHOOK_SIGNING_SECRET` | Yes in production | Svix signing secret for `/api/webhooks/clerk` |
@@ -49,7 +49,15 @@ fails loudly rather than serving a half-configured app.
 
 1. `vercel login` (interactive; cannot be done from a non-interactive session).
 2. `vercel link` in the repository root.
-3. Create the database and run `npm run prisma:deploy` against it with `DATABASE_URL` set to that database.
+3. Create the database, then run the migrations against its **direct, unpooled** endpoint — Vercel exposes that one as
+   `POSTGRES_URL_NON_POOLING`:
+
+   ```bash
+   DATABASE_URL='<unpooled url>' npm run prisma:deploy
+   ```
+
+   A pooler in transaction mode cannot run the advisory locks and DDL that `prisma migrate deploy` needs, so pointing
+   this at the pooled URL fails part-way through. The app itself keeps the pooled URL (§2).
 4. Add every variable in §2 to the Vercel project, for Production and Preview.
 5. `vercel deploy --prod`.
 6. Add the deployment's domain to the Clerk instance's allowed origins, and point the Clerk webhook at
