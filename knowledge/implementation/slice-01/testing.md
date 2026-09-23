@@ -564,7 +564,7 @@ Catalogue status values: `PLANNED` → `IMPLEMENTED` (the test exists in `tests/
 | TC-WEB-006 | integration | Contact visibility flags remove phone/email/address from the public projection. | S1-P07-T001 | P07 | PLANNED |
 | TC-WEB-007 | integration | Publishing the website fails with `WEBSITE_NOT_READY` listing missing prerequisites. | S1-P07-T001 | P07 | PLANNED |
 | TC-WEB-008 | integration | Sitemap lists only published ACTIVE tenants; robots disallows private paths. | S1-P09-T005 | P09 | IMPLEMENTED |
-| TC-WEB-009 | integration | OG image returns PNG 1200×630 for a published tenant; a non-allowlisted logo URL is never fetched (network spy). | S1-P09-T006 | P09 | PLANNED |
+| TC-WEB-009 | integration | OG image returns PNG 1200×630 for a published tenant; a non-allowlisted logo URL is never fetched (network spy). | S1-P09-T006 | P09 | IMPLEMENTED |
 | TC-WEB-010 | e2e | Without a published menu today the page shows the empty state with a link to the full menu. | S1-P09-T004 | P09 | IMPLEMENTED |
 | TC-WEB-011 | e2e | Public pages pass axe (zero serious/critical), viewport matrix and Lighthouse budgets. | S1-P09-T010 | P09 | PLANNED |
 | TC-WEB-014 | integration | A theme colour that fails contrast against the chosen surface mode is rejected with a field error and nothing is written. | S1-P07-T010 | P07 | IMPLEMENTED |

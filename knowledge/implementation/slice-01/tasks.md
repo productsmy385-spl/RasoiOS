@@ -119,7 +119,7 @@ All 227 original tasks start as **PLANNED**; 7 tasks (#228–#234) were added on
 | 80 | S1-P09-T003 | Public restaurant page | P09 | Frontend Engineer | 4d | Critical | S1-P09-T002, S1-P08-T004, S1-P08-T009 | COMPLETED |
 | 81 | S1-P09-T004 | Today's menu share page | P09 | Frontend Engineer | 1d | Medium | S1-P09-T003 | COMPLETED |
 | 82 | S1-P09-T005 | SEO metadata, JSON-LD, sitemap and robots | P09 | Frontend Engineer | 2d | High | S1-P09-T003 | COMPLETED |
-| 83 | S1-P09-T006 | Open Graph image route | P09 | Backend Engineer | 2d | Medium | S1-P09-T002, S1-P07-T002 | PLANNED |
+| 83 | S1-P09-T006 | Open Graph image route | P09 | Backend Engineer | 2d | Medium | S1-P09-T002, S1-P07-T002 | COMPLETED |
 | 84 | S1-P09-T007 | Caching and revalidation policy | P09 | Backend Engineer | 1d | High | S1-P09-T002 | COMPLETED |
 | 85 | S1-P09-T008 | Public response-shape guard | P09 | Security Engineer | 1d | Critical | S1-P09-T003, S1-P09-T006 | COMPLETED |
 | 86 | S1-P09-T009 | Public ordering resolution (decision-gated by Q-001) | P09 | Backend Engineer | 2d | High | S1-P09-T001 | COMPLETED |
@@ -2554,7 +2554,7 @@ All 227 original tasks start as **PLANNED**; 7 tasks (#228–#234) were added on
 
 | # | Phase | Owner | Priority | Effort | Planned Start | Planned Finish | Actual Start | Actual Finish | Status |
 |---|---|---|---|---|---|---|---|---|---|
-| 83 | P09 Public Restaurant Website | Backend Engineer | Medium | 2d | — | — | — | — | PLANNED |
+| 83 | P09 Public Restaurant Website | Backend Engineer | Medium | 2d | — | — | 2026-09-23 | 2026-09-23 | COMPLETED |
 
 - **Dependencies:** S1-P09-T002, S1-P07-T002
 - **Requirements:** REQ-WEB-009, REQ-SEC-006
@@ -2571,8 +2571,12 @@ All 227 original tasks start as **PLANNED**; 7 tasks (#228–#234) were added on
   - `TC-WEB-009` [integration] OG image returns PNG 1200×630 for a published tenant; a non-allowlisted logo URL is never fetched (network spy).
 - **Acceptance criteria:**
   - Route returns 404 for unpublished or suspended tenants.
-- **Implementation notes:** —
-- **Affected files (actual):** —
+- **Implementation notes:** app/r/[slug]/opengraph-image.tsx renders a 1200×630 card from the same public projection the page uses — the restaurant's name, its tagline and its own resolved theme colours — so the preview can contain nothing a diner cannot already see. An unknown slug, a suspended tenant and an unpublished website all fail identically to the page (ADR-012 §7). Cached an hour at the edge.
+
+lib/media/fetch-allowlisted.ts is the only place the server fetches an address that came from a tenant's own data, so the limits live there rather than at the call site: the host allowlist is re-checked immediately before the request (a stored row outlives the setting that accepted it), redirects are refused because the destination would never be checked, the body is capped at 2 MB while streaming so a lying Content-Length cannot make the server buffer arbitrarily, non-image content types are rejected so an HTML error page never reaches the renderer, and a 3 s timeout stops a hanging host holding an invocation open. Any failure falls back to the restaurant's initial on its brand colour — a preview is never worth an error page.
+
+TC-WEB-009 is split: the security half is a unit test with a network spy asserting fetch is never *called* for an off-allowlist host, an IP literal, http://, an embedded credential, a port or a look-alike domain; the route half renders for a published restaurant signed out and refuses the three not-found cases.
+- **Affected files (actual):** app/r/[slug]/opengraph-image.tsx, lib/media/fetch-allowlisted.ts, tests/unit/fetch-allowlisted.test.ts, tests/integration/public/og-image.test.ts
 
 ### S1-P09-T007 — Caching and revalidation policy
 
