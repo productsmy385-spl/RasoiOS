@@ -10,7 +10,15 @@ import { canonicalPublicUrl } from "@/lib/tenancy/request";
  * Each restaurant is listed at its canonical sub-domain when `PUBLIC_ROOT_DOMAIN` is configured, and at the path form
  * otherwise, so the sitemap always matches the `<link rel="canonical">` the page emits (ADR-012 §2).
  */
-export const revalidate = 3600;
+/**
+ * Generated per request, not at build time. `/sitemap.xml` is a static path, so with a `revalidate` export Next
+ * prerenders it during `next build` — which made the build query the database, and a build that needs a live database
+ * fails wherever one is not reachable yet [fact: Vercel build 6uBtE2956, 2026-09-23, "Error occurred prerendering page
+ * /sitemap.xml"]. Building and running are separate concerns; only running should need the data.
+ *
+ * Crawlers fetch this rarely, so one query per request costs nothing worth saving, and the answer is always current.
+ */
+export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
