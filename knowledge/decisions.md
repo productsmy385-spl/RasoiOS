@@ -36,5 +36,6 @@ Architecture changes during implementation require a new ADR (brief §56).
 | [RASOIOS-ADR-011](decisions/RASOIOS-ADR-011.md) | Rate limiting, request integrity and webhook verification without new infrastructure | 2026-09-15 | APPROVED | — |
 | [RASOIOS-ADR-012](decisions/RASOIOS-ADR-012.md) | Tenant subdomain routing for public restaurant websites (`slug.<domain>`, `/r/[slug]` kept) | 2026-09-23 | APPROVED | Answers Q-013; refines ADR-003 |
 | [RASOIOS-ADR-013](decisions/RASOIOS-ADR-013.md) | Brand v2 — vibrant glass design language, header navigation, per-tenant theming | 2026-09-23 | APPROVED | Supersedes the palette and console shell of design.md §2.1–2.3/§6 and CLAUDE.md v1 |
+| [RASOIOS-ADR-014](decisions/RASOIOS-ADR-014.md) | Render as the deployment target (`render.yaml` Blueprint) | 2026-09-23 | PROPOSED | Would supersede the Railway clause of ADR-001 |
 
 ADR-006…011 were approved by the Project Owner on 2026-09-15 in decision gate S1-P01-T010. The same gate answered Q-004, which added GST receipt presentation to ADR-010 §3.

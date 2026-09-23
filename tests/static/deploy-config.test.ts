@@ -43,6 +43,47 @@ describe("Railway configuration", () => {
   });
 });
 
+// RASOIOS-ADR-014 — Render Blueprint. No YAML parser is a dependency, so single-line keys are read by pattern.
+describe("Render configuration (render.yaml)", () => {
+  const render = read("render.yaml");
+  const field = (key: string) => render.match(new RegExp(`^\\s+${key}:\\s*(.+?)\\s*(#.*)?$`, "m"))?.[1];
+
+  it("generates the Prisma client before building", () => {
+    expect(field("buildCommand")).toMatch(/prisma:gen.*&&.*npm run build/);
+  });
+
+  it("applies committed migrations before each deploy", () => {
+    expect(field("preDeployCommand")).toBe("npm run prisma:deploy");
+  });
+
+  it("uses npm scripts that exist", () => {
+    for (const key of ["buildCommand", "preDeployCommand", "startCommand"]) {
+      for (const [, name] of (field(key) ?? "").matchAll(/npm run ([\w:-]+)/g)) {
+        expect(pkg.scripts[name], `missing npm script "${name}"`).toBeTruthy();
+      }
+    }
+  });
+
+  it("health-checks the readiness route, like Railway", () => {
+    expect(field("healthCheckPath")).toBe(railway.deploy.healthcheckPath);
+  });
+
+  it("uses the same PostgreSQL major version as CI", () => {
+    expect(field("postgresMajorVersion")).toBe(`"${ci.match(/image: postgres:(\d+)/)?.[1]}"`);
+  });
+
+  it("does not guess a trusted proxy hop count", () => {
+    expect(render).not.toMatch(/key:\s*TRUSTED_PROXY_HOPS/);
+  });
+
+  it("contains no secret values and keeps every secret out of the file", () => {
+    expect(render).not.toMatch(SECRET_LIKE);
+    for (const key of ["DATABASE_URL", "CLERK_SECRET_KEY", "CLERK_WEBHOOK_SIGNING_SECRET"]) {
+      expect(render).toMatch(new RegExp(`key: ${key}\\n\\s+sync: false`));
+    }
+  });
+});
+
 describe("Local PostgreSQL (docker-compose.yml)", () => {
   it("uses the same PostgreSQL major version as CI", () => {
     const composeMajor = compose.match(/image: postgres:(\d+)/)?.[1];

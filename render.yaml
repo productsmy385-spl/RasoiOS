@@ -1,0 +1,44 @@
+# Render Blueprint — see knowledge/operations/render.md and RASOIOS-ADR-014.
+# No secret values belong in this file: every secret is `sync: false` and is entered in the Render dashboard.
+services:
+  - type: web
+    name: rasoios-web
+    runtime: node # Node version comes from .nvmrc
+    plan: starter # Free spins down when idle and has no pre-deploy command — print agents poll every 3 s (ADR-007)
+    region: singapore
+    branch: main
+    autoDeploy: true
+    # Prisma is generated explicitly: npm 11 allow-scripts can skip the postinstall hook.
+    buildCommand: npm ci && npm run prisma:gen && npm run build
+    preDeployCommand: npm run prisma:deploy
+    startCommand: npm run start
+    healthCheckPath: /api/ready
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      # The Internal Database URL of rasoios-db with `?sslmode=require` appended — lib/env.ts rejects it otherwise.
+      - key: DATABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: CLERK_WEBHOOK_SIGNING_SECRET
+        sync: false
+      # https://rasoios-web.onrender.com, or the custom domain once added.
+      - key: NEXT_PUBLIC_APP_URL
+        sync: false
+      - key: ALLOWED_IMAGE_HOSTS
+        sync: false
+      # TRUSTED_PROXY_HOPS is deliberately absent until Render's X-Forwarded-For chain is measured (render.md §4).
+      # PUBLIC_ROOT_DOMAIN is added with the wildcard custom domain (ADR-012).
+
+databases:
+  - name: rasoios-db
+    databaseName: rasoios
+    user: rasoios
+    plan: basic-256mb
+    region: singapore
+    postgresMajorVersion: "16"
