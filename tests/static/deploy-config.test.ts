@@ -52,6 +52,10 @@ describe("Render configuration (render.yaml)", () => {
     expect(field("buildCommand")).toMatch(/prisma:gen.*&&.*npm run build/);
   });
 
+  it("installs devDependencies even though NODE_ENV=production is set at build time", () => {
+    expect(field("buildCommand")).toMatch(/^npm ci --include=dev /);
+  });
+
   it("applies committed migrations before each deploy", () => {
     expect(field("preDeployCommand")).toBe("npm run prisma:deploy");
   });

@@ -24,7 +24,7 @@ PostgreSQL rate limiter (ADR-011) behave as designed. The Blueprint is [`render.
 | Resource | Setting | Why |
 |---|---|---|
 | `rasoios-web` web service | Plan `starter`, region `singapore`, branch `main`, auto-deploy | Free spins down when idle and cannot run a pre-deploy command |
-| Build | `npm ci && npm run prisma:gen && npm run build` | npm 11 `allow-scripts` can skip the Prisma `postinstall` |
+| Build | `npm ci --include=dev && npm run prisma:gen && npm run build` | Render exposes `NODE_ENV=production` to the build, which makes `npm ci` skip devDependencies (`prisma`, `typescript`, `tailwindcss`, `tsx`); npm 11 `allow-scripts` can skip the Prisma `postinstall` |
 | Pre-deploy | `npm run prisma:deploy` | Migrations run before the new version takes traffic, as on Railway |
 | Start | `npm run start` — `next start` binds Render's `PORT` | — |
 | Health check | `/api/ready` | Checks the database is reachable, not just the process |
@@ -59,7 +59,9 @@ with `sslmode=require`, use the **External Database URL** (TLS is required there
 5. The first deploy runs `prisma migrate deploy` in the pre-deploy step, then health-checks `/api/ready`.
 6. In Clerk: add the `onrender.com` domain to allowed origins and point the webhook at
    `https://rasoios-web.onrender.com/api/webhooks/clerk`.
-7. Create the first super admin: in the service **Shell**, `npm run platform:grant-super-admin`.
+7. Create the first super admin: in the service **Shell**,
+   `npm run platform:grant-super-admin -- --email <owner email> --confirm`. The Clerk webhook subscribes to
+   `user.updated` and `user.deleted` [fact: `lib/services/users.ts:15,30`].
 8. Check `/api/ready`, sign in, confirm the admin console and one tenant console load.
 
 ## 4. Open items

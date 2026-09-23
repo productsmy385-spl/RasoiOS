@@ -8,8 +8,10 @@ services:
     region: singapore
     branch: main
     autoDeploy: true
+    # --include=dev: NODE_ENV=production is also set at build time, and prisma, typescript, tailwindcss and tsx
+    # (used by the pre-deploy step and platform:grant-super-admin) are devDependencies.
     # Prisma is generated explicitly: npm 11 allow-scripts can skip the postinstall hook.
-    buildCommand: npm ci && npm run prisma:gen && npm run build
+    buildCommand: npm ci --include=dev && npm run prisma:gen && npm run build
     preDeployCommand: npm run prisma:deploy
     startCommand: npm run start
     healthCheckPath: /api/ready
