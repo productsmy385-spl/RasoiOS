@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyRoute, ensureRequestId, gate } from "@/lib/auth/route-policy";
+import { classifyRoute, ensureRequestId, gate, mustNotBeStored } from "@/lib/auth/route-policy";
 
 // TC-AUTH-003 / TC-AUTH-004 — the middleware's decision table (S1-P03-T002). The e2e suite exercises the real
 // middleware (tests/e2e/auth-gate.spec.ts).
@@ -75,5 +75,28 @@ describe("ensureRequestId", () => {
     expect(ensureRequestId("short", generate)).toBe("generated-uuid");
     expect(ensureRequestId("bad id\r\ninjected: 1", generate)).toBe("generated-uuid");
     expect(ensureRequestId("x".repeat(65), generate)).toBe("generated-uuid");
+  });
+});
+
+describe("TC-SEC-006 no shared cache holds one person's data (SC-PUB-02)", () => {
+  it("marks every session- or token-authenticated path no-store", () => {
+    for (const path of [
+      "/restaurant/orders",
+      "/restaurant/transactions",
+      "/admin",
+      "/admin/tenants/123",
+      "/account/select-tenant",
+      "/api/v1/orders",
+      "/api/v1/print-jobs",
+      "/api/v1/print-agent/jobs/claim",
+    ]) {
+      expect(mustNotBeStored(path), path).toBe(true);
+    }
+  });
+
+  it("leaves public routes cacheable, so the restaurant sites keep their ISR window", () => {
+    for (const path of ["/", "/r/spice-route", "/r/spice-route/daily", "/sign-in", "/robots.txt", "/sitemap.xml", "/api/health", "/api/ready"]) {
+      expect(mustNotBeStored(path), path).toBe(false);
+    }
   });
 });

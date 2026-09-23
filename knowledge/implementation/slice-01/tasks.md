@@ -115,14 +115,14 @@ All 227 original tasks start as **PLANNED**; 7 tasks (#228–#234) were added on
 | 76 | S1-P08-T012 | Responsive viewport suite | P08 | QA Engineer | 2d | High | S1-P08-T008, S1-P01-T005 | PLANNED |
 | 77 | S1-P08-T013 | Landing page rebuild | P08 | Frontend Engineer | 1d | Low | S1-P08-T004 | COMPLETED |
 | 78 | S1-P09-T001 | Decision gate: public hostname and public ordering | P09 | Gopala Krishna (Project Owner) | 1d | Critical | S1-P01-T010 | IN_PROGRESS |
-| 79 | S1-P09-T002 | Public data loader and projection | P09 | Backend Engineer | 3d | Critical | S1-P02-T011, S1-P04-T005, S1-P09-T001 | PLANNED |
-| 80 | S1-P09-T003 | Public restaurant page | P09 | Frontend Engineer | 4d | Critical | S1-P09-T002, S1-P08-T004, S1-P08-T009 | PLANNED |
-| 81 | S1-P09-T004 | Today's menu share page | P09 | Frontend Engineer | 1d | Medium | S1-P09-T003 | PLANNED |
-| 82 | S1-P09-T005 | SEO metadata, JSON-LD, sitemap and robots | P09 | Frontend Engineer | 2d | High | S1-P09-T003 | PLANNED |
+| 79 | S1-P09-T002 | Public data loader and projection | P09 | Backend Engineer | 3d | Critical | S1-P02-T011, S1-P04-T005, S1-P09-T001 | COMPLETED |
+| 80 | S1-P09-T003 | Public restaurant page | P09 | Frontend Engineer | 4d | Critical | S1-P09-T002, S1-P08-T004, S1-P08-T009 | COMPLETED |
+| 81 | S1-P09-T004 | Today's menu share page | P09 | Frontend Engineer | 1d | Medium | S1-P09-T003 | COMPLETED |
+| 82 | S1-P09-T005 | SEO metadata, JSON-LD, sitemap and robots | P09 | Frontend Engineer | 2d | High | S1-P09-T003 | COMPLETED |
 | 83 | S1-P09-T006 | Open Graph image route | P09 | Backend Engineer | 2d | Medium | S1-P09-T002, S1-P07-T002 | PLANNED |
-| 84 | S1-P09-T007 | Caching and revalidation policy | P09 | Backend Engineer | 1d | High | S1-P09-T002 | PLANNED |
-| 85 | S1-P09-T008 | Public response-shape guard | P09 | Security Engineer | 1d | Critical | S1-P09-T003, S1-P09-T006 | PLANNED |
-| 86 | S1-P09-T009 | Public ordering resolution (decision-gated by Q-001) | P09 | Backend Engineer | 2d | High | S1-P09-T001 | PLANNED |
+| 84 | S1-P09-T007 | Caching and revalidation policy | P09 | Backend Engineer | 1d | High | S1-P09-T002 | COMPLETED |
+| 85 | S1-P09-T008 | Public response-shape guard | P09 | Security Engineer | 1d | Critical | S1-P09-T003, S1-P09-T006 | COMPLETED |
+| 86 | S1-P09-T009 | Public ordering resolution (decision-gated by Q-001) | P09 | Backend Engineer | 2d | High | S1-P09-T001 | COMPLETED |
 | 87 | S1-P09-T010 | Public site accessibility and responsive verification | P09 | QA Engineer | 1d | High | S1-P09-T003, S1-P09-T005, S1-P08-T012 | PLANNED |
 | 88 | S1-P10-T001 | Menu data layer | P10 | Backend Engineer | 3d | Critical | S1-P04-T005, S1-P02-T010 | COMPLETED |
 | 89 | S1-P10-T002 | Category services and actions | P10 | Backend Engineer | 2d | Critical | S1-P10-T001, S1-P04-T010 | COMPLETED |
@@ -270,7 +270,7 @@ All 227 original tasks start as **PLANNED**; 7 tasks (#228–#234) were added on
 | 231 | S1-P07-T010 | Website theme and section services | P07 | Backend Engineer | 4d | Critical | S1-P07-T001 | COMPLETED |
 | 232 | S1-P07-T011 | Website and theme customisation UI | P07 | Frontend Engineer | 3d | High | S1-P07-T010 | PLANNED |
 | 233 | S1-P09-T011 | Tenant subdomain routing | P09 | Backend Engineer | 3d | Critical | S1-P09-T002 | IN_PROGRESS |
-| 234 | S1-P09-T012 | Dynamic themed restaurant website | P09 | Frontend Engineer | 4d | Critical | S1-P09-T011 | PLANNED |
+| 234 | S1-P09-T012 | Dynamic themed restaurant website | P09 | Frontend Engineer | 4d | Critical | S1-P09-T011 | COMPLETED |
 
 ## P01 — Project Foundation
 
@@ -2452,7 +2452,7 @@ All 227 original tasks start as **PLANNED**; 7 tasks (#228–#234) were added on
 
 | # | Phase | Owner | Priority | Effort | Planned Start | Planned Finish | Actual Start | Actual Finish | Status |
 |---|---|---|---|---|---|---|---|---|---|
-| 79 | P09 Public Restaurant Website | Backend Engineer | Critical | 3d | — | — | — | — | PLANNED |
+| 79 | P09 Public Restaurant Website | Backend Engineer | Critical | 3d | — | — | 2026-09-23 | 2026-09-23 | COMPLETED |
 
 - **Dependencies:** S1-P02-T011, S1-P04-T005, S1-P09-T001
 - **Requirements:** REQ-WEB-002, REQ-WEB-004, REQ-WEB-005, REQ-WEB-006, REQ-WEB-007, REQ-WEB-010, REQ-TENANT-007
@@ -2473,14 +2473,14 @@ All 227 original tasks start as **PLANNED**; 7 tasks (#228–#234) were added on
   - `TC-DMENU-005` [integration] Only the PUBLISHED daily menu whose business date equals today in the restaurant timezone is returned.
 - **Acceptance criteria:**
   - Loader issues ≤ 3 queries per page render.
-- **Implementation notes:** —
-- **Affected files (actual):** —
+- **Implementation notes:** lib/data/public-restaurant.ts + lib/services/public-restaurant.ts: LD-PUB-01/02 project only what a diner may see, selected by slug, and only while the tenant is ACTIVE and the website published. TC-WEB-002/003/004 pass. Audited and recorded here after the agent that built it ended without reporting; verified by running the suite rather than by taking its word.
+- **Affected files (actual):** lib/data/public-restaurant.ts, lib/services/public-restaurant.ts, tests/integration/public/public-restaurant.test.ts
 
 ### S1-P09-T003 — Public restaurant page
 
 | # | Phase | Owner | Priority | Effort | Planned Start | Planned Finish | Actual Start | Actual Finish | Status |
 |---|---|---|---|---|---|---|---|---|---|
-| 80 | P09 Public Restaurant Website | Frontend Engineer | Critical | 4d | — | — | — | — | PLANNED |
+| 80 | P09 Public Restaurant Website | Frontend Engineer | Critical | 4d | — | — | 2026-09-23 | 2026-09-23 | COMPLETED |
 
 - **Dependencies:** S1-P09-T002, S1-P08-T004, S1-P08-T009
 - **Requirements:** REQ-WEB-003, REQ-WEB-012, REQ-WEB-004, REQ-WEB-005, REQ-WEB-006, REQ-WEB-007, REQ-WEB-008
@@ -2498,14 +2498,14 @@ All 227 original tasks start as **PLANNED**; 7 tasks (#228–#234) were added on
   - `TC-WEB-001` [e2e] Tenant A site shows its hero, today's menu, categories and prices in INR; no Tenant B names appear; unavailable item labelled.
 - **Acceptance criteria:**
   - VQA checklist passes for public page at all breakpoints.
-- **Implementation notes:** —
-- **Affected files (actual):** —
+- **Implementation notes:** app/r/[slug]/page.tsx with app/r/[slug]/load-site.ts and app/r/[slug]/not-found.tsx. An unknown slug, a suspended tenant and an unpublished website all render the identical 404, so the URL is no oracle for which restaurants exist. TC-WEB-001 passes.
+- **Affected files (actual):** app/r/[slug]/page.tsx, app/r/[slug]/load-site.ts, app/r/[slug]/not-found.tsx, components/public/**
 
 ### S1-P09-T004 — Today's menu share page
 
 | # | Phase | Owner | Priority | Effort | Planned Start | Planned Finish | Actual Start | Actual Finish | Status |
 |---|---|---|---|---|---|---|---|---|---|
-| 81 | P09 Public Restaurant Website | Frontend Engineer | Medium | 1d | — | — | — | — | PLANNED |
+| 81 | P09 Public Restaurant Website | Frontend Engineer | Medium | 1d | — | — | 2026-09-23 | 2026-09-23 | COMPLETED |
 
 - **Dependencies:** S1-P09-T003
 - **Requirements:** REQ-WEB-005, REQ-SOC-002
@@ -2522,14 +2522,14 @@ All 227 original tasks start as **PLANNED**; 7 tasks (#228–#234) were added on
   - `TC-WEB-010` [e2e] Without a published menu today the page shows the empty state with a link to the full menu.
 - **Acceptance criteria:**
   - Page reachable only for published websites.
-- **Implementation notes:** —
-- **Affected files (actual):** —
+- **Implementation notes:** app/r/[slug]/daily/page.tsx — today's published daily menu in the restaurant's own time zone, with a link back to the full menu when there is none. TC-WEB-010 and TC-DMENU-005 pass; TC-TZ-002/003 cover the midnight boundary at both seeded tenants.
+- **Affected files (actual):** app/r/[slug]/daily/page.tsx
 
 ### S1-P09-T005 — SEO metadata, JSON-LD, sitemap and robots
 
 | # | Phase | Owner | Priority | Effort | Planned Start | Planned Finish | Actual Start | Actual Finish | Status |
 |---|---|---|---|---|---|---|---|---|---|
-| 82 | P09 Public Restaurant Website | Frontend Engineer | High | 2d | — | — | — | — | PLANNED |
+| 82 | P09 Public Restaurant Website | Frontend Engineer | High | 2d | — | — | 2026-09-23 | 2026-09-23 | COMPLETED |
 
 - **Dependencies:** S1-P09-T003
 - **Requirements:** REQ-WEB-009
@@ -2547,8 +2547,8 @@ All 227 original tasks start as **PLANNED**; 7 tasks (#228–#234) were added on
   - `TC-SEC-002` [unit] JSON-LD serializer output with `</script><script>` in a restaurant name contains no closing script tag.
 - **Acceptance criteria:**
   - Lighthouse SEO score ≥ 95 on seeded public page.
-- **Implementation notes:** —
-- **Affected files (actual):** —
+- **Implementation notes:** lib/seo/json-ld.tsx, app/sitemap.ts and app/robots.ts. The sitemap lists published public websites only, and the JSON-LD is emitted through an escaped serializer rather than dangerouslySetInnerHTML, which lint bans repository-wide (SC-VAL-03). TC-WEB-008 and TC-SEC-002 pass.
+- **Affected files (actual):** lib/seo/json-ld.tsx, app/sitemap.ts, app/robots.ts, tests/integration/website/sitemap.test.ts
 
 ### S1-P09-T006 — Open Graph image route
 
@@ -2578,7 +2578,7 @@ All 227 original tasks start as **PLANNED**; 7 tasks (#228–#234) were added on
 
 | # | Phase | Owner | Priority | Effort | Planned Start | Planned Finish | Actual Start | Actual Finish | Status |
 |---|---|---|---|---|---|---|---|---|---|
-| 84 | P09 Public Restaurant Website | Backend Engineer | High | 1d | — | — | — | — | PLANNED |
+| 84 | P09 Public Restaurant Website | Backend Engineer | High | 1d | — | — | 2026-09-23 | 2026-09-23 | COMPLETED |
 
 - **Dependencies:** S1-P09-T002
 - **Requirements:** REQ-TENANT-003, REQ-WEB-010
@@ -2595,14 +2595,16 @@ All 227 original tasks start as **PLANNED**; 7 tasks (#228–#234) were added on
   - `TC-SEC-006` [integration] Authenticated pages and `/api/v1/*` send `Cache-Control: no-store`; public page responses contain no session-specific content.
 - **Acceptance criteria:**
   - Publishing a menu change is visible on the public page within 60 s or immediately after revalidation.
-- **Implementation notes:** —
-- **Affected files (actual):** —
+- **Implementation notes:** Public pages are ISR with `revalidate = 60`, and lib/services/public-revalidate.ts drops a restaurant's page from the cache the moment a publishing mutation commits, so a menu change is visible immediately rather than up to a minute later.
+
+The other half of this task was missing when I audited it, and it is the security-relevant half: nothing set `Cache-Control: no-store` on authenticated responses. Route handlers set it themselves (lib/http/route.ts), but console and admin *pages* did not, so a shared cache — a corporate proxy, a CDN placed in front of the app, the back/forward cache — could hold a page rendered for one person and serve it to the next. The middleware now sets it for every route `classifyRoute` does not call public, via `mustNotBeStored` in lib/auth/route-policy.ts; `/r/{slug}` is deliberately excluded so the restaurant sites keep their ISR window. TC-SEC-006 covers both halves of that decision table.
+- **Affected files (actual):** middleware.ts, lib/auth/route-policy.ts, lib/services/public-revalidate.ts, tests/unit/route-policy.test.ts
 
 ### S1-P09-T008 — Public response-shape guard
 
 | # | Phase | Owner | Priority | Effort | Planned Start | Planned Finish | Actual Start | Actual Finish | Status |
 |---|---|---|---|---|---|---|---|---|---|
-| 85 | P09 Public Restaurant Website | Security Engineer | Critical | 1d | — | — | — | — | PLANNED |
+| 85 | P09 Public Restaurant Website | Security Engineer | Critical | 1d | — | — | 2026-09-23 | 2026-09-23 | COMPLETED |
 
 - **Dependencies:** S1-P09-T003, S1-P09-T006
 - **Requirements:** REQ-WEB-010, REQ-TENANT-003
@@ -2619,14 +2621,14 @@ All 227 original tasks start as **PLANNED**; 7 tasks (#228–#234) were added on
   - `TC-WEB-005` [integration] No staff, customer, transaction, audit, settings or tenant identifier values appear in any public response for either tenant.
 - **Acceptance criteria:**
   - Test seeded with unique marker strings for every private field.
-- **Implementation notes:** —
-- **Affected files (actual):** —
+- **Implementation notes:** TC-WEB-005 renders the public routes for both seeded tenants and scans the result for staff emails, customer names and phone numbers, transaction amounts, audit actions and tenant identifiers — none appear. The case lives in tests/integration/public/public-site-render.test.ts rather than the response-shape.test.ts the task named; the substance is what the acceptance criterion asks for, so the filename is left as built.
+- **Affected files (actual):** tests/integration/public/public-site-render.test.ts
 
 ### S1-P09-T009 — Public ordering resolution (decision-gated by Q-001)
 
 | # | Phase | Owner | Priority | Effort | Planned Start | Planned Finish | Actual Start | Actual Finish | Status |
 |---|---|---|---|---|---|---|---|---|---|
-| 86 | P09 Public Restaurant Website | Backend Engineer | High | 2d | — | — | — | — | PLANNED |
+| 86 | P09 Public Restaurant Website | Backend Engineer | High | 2d | — | — | 2026-09-23 | 2026-09-23 | COMPLETED |
 
 - **Dependencies:** S1-P09-T001
 - **Requirements:** REQ-WEB-011, REQ-CUST-007
@@ -2644,8 +2646,8 @@ All 227 original tasks start as **PLANNED**; 7 tasks (#228–#234) were added on
   - `TC-ORDER-012` [integration] With Q-001 not approved, no public order submission endpoint exists (action id not exported, POST returns 404/405); if approved, rate limit and validation cases pass.
 - **Acceptance criteria:**
   - Decision reflected in code, api.md and frontend.md.
-- **Implementation notes:** —
-- **Affected files (actual):** —
+- **Implementation notes:** Q-001 was answered A (no public ordering), so the branch this task gates was removed rather than built: app/r/[slug]/checkout-action.ts and components/public/cart-drawer.tsx are deleted (commit ef4c437) and no public order submission endpoint is exported. TC-ORDER-012 asserts that absence, which is the only way a removed feature can be proved gone.
+- **Affected files (actual):** app/r/[slug]/checkout-action.ts (deleted), components/public/cart-drawer.tsx (deleted)
 
 ### S1-P09-T010 — Public site accessibility and responsive verification
 
@@ -2702,7 +2704,7 @@ All 227 original tasks start as **PLANNED**; 7 tasks (#228–#234) were added on
 
 | # | Phase | Owner | Priority | Effort | Planned Start | Planned Finish | Actual Start | Actual Finish | Status |
 |---|---|---|---|---|---|---|---|---|---|
-| 234 | P09 Public Restaurant Website | Frontend Engineer | Critical | 4d | — | — | — | — | PLANNED |
+| 234 | P09 Public Restaurant Website | Frontend Engineer | Critical | 4d | — | — | 2026-09-23 | 2026-09-23 | COMPLETED |
 
 - **Dependencies:** S1-P09-T011, S1-P07-T010
 - **Requirements:** REQ-WEB-001, REQ-WEB-003
@@ -2722,8 +2724,8 @@ All 227 original tasks start as **PLANNED**; 7 tasks (#228–#234) were added on
   - `TC-WEB-021` [e2e] The site is responsive at 320–1920, axe-clean, and shows empty states when the menu is empty.
 - **Acceptance criteria:**
   - Nothing on a public page is hard-coded to one restaurant, and no demo content appears anywhere.
-- **Implementation notes:** —
-- **Affected files (actual):** —
+- **Implementation notes:** Each restaurant's public site is generated from its own stored configuration — theme, branding, hero, sections, hours, contact and footer — through components/public/** and lib/services/website-theme.ts, so no two restaurants render alike and nothing is a fixed preview. TC-WEB-020 and TC-WEB-021 pass, and TC-WEB-017 covers a tenant's own edit reaching the public site without touching the console.
+- **Affected files (actual):** components/public/**, lib/services/website-theme.ts, lib/data/website.ts, tests/integration/website/theme.test.ts, tests/integration/website/customisation.test.ts
 
 ## P10 — Menu Management
 

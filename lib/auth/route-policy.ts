@@ -31,6 +31,20 @@ export function classifyRoute(pathname: string): RouteKind {
   return "page";
 }
 
+/**
+ * Whether a response for this path must carry `Cache-Control: no-store` (S1-P09-T007, TC-SEC-006, SC-PUB-02).
+ *
+ * Everything that is not a public route is answered from a session or a bearer token, so it is one user's — or one
+ * restaurant's — data. Without this a shared cache (a corporate proxy, a CDN put in front of the app, the browser's
+ * back/forward cache) may hold a console page rendered for one person and hand it to the next.
+ *
+ * Public routes are deliberately excluded: `/r/{slug}` is the same page for everyone and is served from the ISR cache
+ * with `revalidate = 60` (api.md §7), which `no-store` would defeat.
+ */
+export function mustNotBeStored(pathname: string): boolean {
+  return classifyRoute(pathname) !== "public";
+}
+
 export type GateDecision =
   | { action: "next" }
   | { action: "redirect"; location: string }

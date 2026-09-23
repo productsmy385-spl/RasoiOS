@@ -1,6 +1,6 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { ensureRequestId, gate } from "@/lib/auth/route-policy";
+import { ensureRequestId, gate, mustNotBeStored } from "@/lib/auth/route-policy";
 import {
   TENANT_SLUG_HEADER,
   UNRESOLVABLE_PUBLIC_PATH,
@@ -84,6 +84,9 @@ export default clerkMiddleware(async (auth, req) => {
   headers.delete(TENANT_SLUG_HEADER);
   const response = NextResponse.next({ request: { headers } });
   response.headers.set("x-request-id", requestId);
+  // Session- and token-authenticated responses are one user's data; a shared cache must never hand them to the next
+  // person (SC-PUB-02, TC-SEC-006). Public pages keep their ISR caching.
+  if (mustNotBeStored(pathname)) response.headers.set("cache-control", "no-store");
   return response;
 });
 

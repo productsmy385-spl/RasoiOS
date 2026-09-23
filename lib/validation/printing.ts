@@ -9,45 +9,12 @@
  */
 import { PrintJobStatus, PrintJobType, PrinterConnection, PrinterHealth, PrinterPurpose } from "@prisma/client";
 import { z } from "zod";
+import { isPrivateLanAddress, USB_ADDRESS_PATTERN } from "@/lib/print/address";
 import { boundedText, optionalText, strictObject, uuidParam } from "./core";
 
-// ─── Printer addresses (SC-PRINT-06) ───
+// ─── Printer addresses (SC-PRINT-06) — shared with the local agent via lib/print/address.ts ───
 
-const IPV4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
-
-/** RFC 1918 private ranges only. Loopback, link-local, multicast, `0.0.0.0` and every public address are refused. */
-export function isPrivateIpv4(value: string): boolean {
-  const match = IPV4.exec(value);
-  if (!match) return false;
-  const parts = match.slice(1).map((part) => Number(part));
-  if (parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false;
-  if (match.slice(1).some((part) => part.length > 1 && part.startsWith("0"))) return false;
-  const [a, b] = parts;
-  if (a === 10) return true;
-  if (a === 172 && b >= 16 && b <= 31) return true;
-  if (a === 192 && b === 168) return true;
-  return false;
-}
-
-export function isValidPort(value: string): boolean {
-  if (!/^\d{1,5}$/.test(value)) return false;
-  const port = Number(value);
-  return port >= 1 && port <= 65535;
-}
-
-/** `192.168.1.50:9100`, `10.0.0.7` — a private IPv4 with an optional port. Hostnames and `localhost` are refused. */
-export function isPrivateLanAddress(value: string): boolean {
-  const [host, port, ...rest] = value.split(":");
-  if (rest.length > 0) return false;
-  if (!isPrivateIpv4(host ?? "")) return false;
-  return port === undefined || isValidPort(port);
-}
-
-/**
- * A USB device or OS print-queue name, e.g. `USB001` or `Star TSP100 (copy 1)`. Printable ASCII only, with no shell
- * metacharacters and no control characters — the agent passes this string to an OS printing call.
- */
-export const USB_ADDRESS_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 ._:#/\\()+-]{0,63}$/;
+export { isPrivateIpv4, isPrivateLanAddress, isValidPort, USB_ADDRESS_PATTERN } from "@/lib/print/address";
 
 export const LAN_ADDRESS_MESSAGE = "Use a private LAN address such as 192.168.1.50:9100 (10.x, 172.16–31.x or 192.168.x only).";
 export const USB_ADDRESS_MESSAGE = "Use the USB device or print-queue name, e.g. USB001.";

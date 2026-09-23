@@ -500,7 +500,7 @@ Catalogue status values: `PLANNED` → `IMPLEMENTED` (the test exists in `tests/
 | TC-SEC-003 | unit | Rejects `http:`, `https://169.254.169.254/`, `https://user:pass@host`, `https://evil.test`, `https://allowed.test:8443`; accepts allowlisted hosts. | S1-P07-T002 | P07 | IMPLEMENTED |
 | TC-SEC-004 | static | No `$queryRawUnsafe`/`$executeRawUnsafe`; every `$queryRaw` is a tagged template inside `lib/data`. | S1-P24-T004 | P24 | PLANNED |
 | TC-SEC-005 | integration | Invalid UUID, slug or date route params render the not-found page / 404. | S1-P04-T006 | P04 | IMPLEMENTED |
-| TC-SEC-006 | integration | Authenticated pages and `/api/v1/*` send `Cache-Control: no-store`; public page responses contain no session-specific content. | S1-P09-T007 | P09 | PLANNED |
+| TC-SEC-006 | integration | Authenticated pages and `/api/v1/*` send `Cache-Control: no-store`; public page responses contain no session-specific content. | S1-P09-T007 | P09 | IMPLEMENTED |
 | TC-SEC-007 | integration | An unexpected exception yields 500 `INTERNAL` with request id and no stack, SQL or Prisma message. | S1-P04-T005 | P04 | IMPLEMENTED |
 | TC-SEC-008 | integration | `limit=1000` is rejected or capped to 100; a 1 MB action body returns 413. | S1-P24-T005 | P24 | PLANNED |
 | TC-SEC-009 | static | No action, route handler or loader returns an object spread from, or identical to, a Prisma model result. | S1-P24-T007 | P24 | PLANNED |
@@ -556,16 +556,16 @@ Catalogue status values: `PLANNED` → `IMPLEMENTED` (the test exists in `tests/
 | TC-TZ-007 | static | No `toLocale*String(` call lacks a `timeZone` option and no IANA zone literal appears outside allowed paths. | S1-P22-T002 | P22 | PLANNED |
 | TC-TZ-008 | integration | Changing timezone leaves existing orders' and transactions' `business_date` unchanged and applies the new zone to new orders. | S1-P22-T003 | P22 | PLANNED |
 | TC-TZ-009 | integration | At one UTC instant the two tenants have different business dates and every dependent feature uses its own tenant's date. | S1-P22-T004 | P22 | PLANNED |
-| TC-WEB-001 | e2e | Tenant A site shows its hero, today's menu, categories and prices in INR; no Tenant B names appear; unavailable item labelled. | S1-P09-T003 | P09 | PLANNED |
+| TC-WEB-001 | e2e | Tenant A site shows its hero, today's menu, categories and prices in INR; no Tenant B names appear; unavailable item labelled. | S1-P09-T003 | P09 | IMPLEMENTED |
 | TC-WEB-002 | integration | Public DTO keys equal the documented whitelist exactly (snapshot of key paths). | S1-P09-T002 | P09 | IMPLEMENTED |
 | TC-WEB-003 | integration | Unpublished categories, unpublished/archived items and unpublished daily menus are excluded. | S1-P09-T002 | P09 | IMPLEMENTED |
 | TC-WEB-004 | integration | Unknown slug, suspended tenant and unpublished website produce identical not-found results. | S1-P09-T002 | P09 | IMPLEMENTED |
 | TC-WEB-005 | integration | No staff, customer, transaction, audit, settings or tenant identifier values appear in any public response for either tenant. | S1-P09-T008 | P09 | IMPLEMENTED |
 | TC-WEB-006 | integration | Contact visibility flags remove phone/email/address from the public projection. | S1-P07-T001 | P07 | PLANNED |
 | TC-WEB-007 | integration | Publishing the website fails with `WEBSITE_NOT_READY` listing missing prerequisites. | S1-P07-T001 | P07 | PLANNED |
-| TC-WEB-008 | integration | Sitemap lists only published ACTIVE tenants; robots disallows private paths. | S1-P09-T005 | P09 | PLANNED |
+| TC-WEB-008 | integration | Sitemap lists only published ACTIVE tenants; robots disallows private paths. | S1-P09-T005 | P09 | IMPLEMENTED |
 | TC-WEB-009 | integration | OG image returns PNG 1200×630 for a published tenant; a non-allowlisted logo URL is never fetched (network spy). | S1-P09-T006 | P09 | PLANNED |
-| TC-WEB-010 | e2e | Without a published menu today the page shows the empty state with a link to the full menu. | S1-P09-T004 | P09 | PLANNED |
+| TC-WEB-010 | e2e | Without a published menu today the page shows the empty state with a link to the full menu. | S1-P09-T004 | P09 | IMPLEMENTED |
 | TC-WEB-011 | e2e | Public pages pass axe (zero serious/critical), viewport matrix and Lighthouse budgets. | S1-P09-T010 | P09 | PLANNED |
 | TC-WEB-014 | integration | A theme colour that fails contrast against the chosen surface mode is rejected with a field error and nothing is written. | S1-P07-T010 | P07 | IMPLEMENTED |
 | TC-WEB-015 | integration | Tenant A cannot read or modify Tenant B's theme or sections (404 parity); section copy is stored and rendered as text, never markup. | S1-P07-T010 | P07 | IMPLEMENTED |
@@ -573,6 +573,6 @@ Catalogue status values: `PLANNED` → `IMPLEMENTED` (the test exists in `tests/
 | TC-WEB-017 | e2e | A TENANT_ADMIN changes a colour and a section headline; the public site shows it and the console does not. | S1-P07-T011 | P07 | PLANNED |
 | TC-WEB-018 | integration | Host `{slug}.example.test` resolves to that tenant; reserved labels, unknown slugs, unpublished sites and suspended tenants all 404 identically. | S1-P09-T011 | P09 | IMPLEMENTED |
 | TC-WEB-019 | e2e | `{slug}.localhost` renders the site; `/restaurant` on a tenant host redirects to the apex host; `/r/{slug}` renders with a canonical link. | S1-P09-T011 | P09 | PLANNED |
-| TC-WEB-020 | integration | Two tenants with different themes and sections render different documents; disabled sections are absent; tenant copy is escaped. | S1-P09-T012 | P09 | PLANNED |
-| TC-WEB-021 | e2e | A public site is responsive at 320–1920, axe-clean, and shows empty states when the menu is empty. | S1-P09-T012 | P09 | PLANNED |
+| TC-WEB-020 | integration | Two tenants with different themes and sections render different documents; disabled sections are absent; tenant copy is escaped. | S1-P09-T012 | P09 | IMPLEMENTED |
+| TC-WEB-021 | e2e | A public site is responsive at 320–1920, axe-clean, and shows empty states when the menu is empty. | S1-P09-T012 | P09 | IMPLEMENTED |
 <!-- CATALOGUE:END -->
