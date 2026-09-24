@@ -61,6 +61,8 @@ const eslintConfig = [
       "tsconfig.tsbuildinfo",
       "public/sw.js",
       ".local/**",
+      // Generated print-agent bundle (npm run agent:build).
+      "print-agent/dist/**",
       ".next-stale-*/**",
     ],
   },

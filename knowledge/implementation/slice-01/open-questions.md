@@ -7,7 +7,7 @@ slice: "SLICE-01"
 status: "PROPOSED"
 version: "2.0"
 created: "2026-09-15"
-last_updated: "2026-09-15"
+last_updated: "2026-09-23"
 owner: "Gopala Krishna (Project Owner)"
 planned_start: "2026-09-15"
 planned_finish: "Not scheduled — execution-order plan"
@@ -136,7 +136,15 @@ Supersedes v1.0 questions: old Q-001 (certified printers) → Q-011 · old Q-002
 - **Blocking?** Yes — for P17
 - **Owner:** Gopala Krishna
 - **Decision deadline:** Before S1-P17-T002 starts (gate S1-P17-T001)
-- **Status:** OPEN
+- **Status:** ANSWERED 2026-09-23 — **C**: Windows 10/11 **and** Linux with systemd (incl. Raspberry Pi OS), Node.js 22+ on both.
+  - Windows runs the agent as a scheduled task at boot under SYSTEM (no third-party service wrapper); Linux as the
+    hardened `rasoios-print-agent.service` under an unprivileged `rasoios-agent` user in group `lp`.
+  - Credential storage deviates from the S1-P17-T003 wording ("Windows Credential Manager/DPAPI"): the token is a file
+    in a directory restricted to SYSTEM + Administrators (Windows ACL set by the installer) or 0700/0600 for the service
+    user (Linux). DPAPI from Node needs a native module or a PowerShell child process, and child processes are banned in
+    this repository (SC-VAL-06); machine-scope DPAPI would not keep the token from an administrator either.
+  - USB: Windows writes RAW to a local printer share (`\\localhost\<share>`), Linux to `/dev/usb/lpN` — plain file I/O.
+  - Install/runbook: `operations/print-agent.md`.
 
 ### Q-011 — Which printer models must be verified?
 - **Category:** Printing / Hardware
@@ -347,3 +355,21 @@ Supersedes v1.0 questions: old Q-001 (certified printers) → Q-011 · old Q-002
 - **Owner:** Gopala Krishna
 - **Decision deadline:** Before S1-P03-T001 starts (gate S1-P01-T010)
 - **Status:** ANSWERED 2026-09-15 — **A**: 12 h maximum session lifetime, 2 h inactivity timeout; kitchen devices revisited after the field test (S1-P15-T004).
+
+### Q-030 — Should the print agent discover printers on the LAN automatically?
+- **Category:** Printing
+- **Why it matters:** Requested 2026-09-23 (Wi-Fi printer discovery wizard: mDNS/DNS-SD, IPP, raw-port scan). Today a printer
+  is added manually by private IP and port, which already works end to end. Discovery conflicts with S1-P17-T010 /
+  T-028 ("agent opens no listening ports"): mDNS needs a multicast listening socket, and a port scan of the restaurant
+  subnet is intrusive. It also needs a new agent → server channel for discovered devices (a new RH-AGT endpoint and a
+  console flow), which no ADR covers.
+- **Options:** (A) Keep manual entry only in SLICE-01; add the agent `status` command and test print as the
+  verification path (current state). (B) Add discovery via a new ADR amending ADR-007 and T-028: opt-in, triggered
+  from the console, mDNS/DNS-SD browse + probe of port 9100 on the agent's own /24 only, results reported, never
+  auto-registered. (C) Future Scope.
+- **Recommendation:** **B** if restaurants struggle to find printer IPs during onboarding; otherwise **A** for SLICE-01.
+- **Impact:** B: ADR-014 (proposed), new RH-AGT-06, console wizard step, threat-model update, tests.
+- **Blocking?** No — manual registration covers the required flow.
+- **Owner:** Gopala Krishna
+- **Decision deadline:** Before S1-P25-T009 (physical printing QA)
+- **Status:** OPEN — deferred by the Project Owner on 2026-09-23 pending an ADR; not implemented.

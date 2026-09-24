@@ -81,6 +81,9 @@ a non-atomic read-then-update (BA-22).
    Payloads carry only what is printed on the ticket, no internal IDs beyond the job ID, and no secrets.
 9. **Agent implementation.** A TypeScript Node.js LTS program in `print-agent/` in this repository,
    built as a separate package. OS target and installer packaging are pending **Q-010**.
+   - *Update 2026-09-23:* Q-010 answered (C) — Windows 10/11 and Linux/systemd; token in an OS-restricted file rather
+     than DPAPI (no child processes, SC-VAL-06). Details in `implementation/slice-01/open-questions.md` Q-010 and
+     `operations/print-agent.md`. The rest of this decision is unchanged.
 
 ## Alternatives considered
 

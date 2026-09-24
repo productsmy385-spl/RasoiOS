@@ -4010,7 +4010,7 @@ Reviewed and corrected after the agent reported: agentSourceIp took the LEFT-mos
 
 | # | Phase | Owner | Priority | Effort | Planned Start | Planned Finish | Actual Start | Actual Finish | Status |
 |---|---|---|---|---|---|---|---|---|---|
-| 137 | P17 Local Print Agent | Gopala Krishna (Project Owner) | Critical | 1d | — | — | — | — | PLANNED |
+| 137 | P17 Local Print Agent | Gopala Krishna (Project Owner) | Critical | 1d | — | — | 2026-09-23 | — | IN_PROGRESS |
 
 - **Dependencies:** S1-P01-T010
 - **Requirements:** REQ-AGENT-005, REQ-AGENT-001
@@ -4027,14 +4027,14 @@ Reviewed and corrected after the agent reported: agentSourceIp took the LEFT-mos
   - None — decision record.
 - **Acceptance criteria:**
   - Q-010 and Q-011 ANSWERED; test printers available.
-- **Implementation notes:** —
-- **Affected files (actual):** —
+- **Implementation notes:** Q-010 ANSWERED 2026-09-23 (C — Windows and Linux). Still open: Q-011 (printer models) and physical test printers (one USB, one LAN ESC/POS).
+- **Affected files (actual):** knowledge/implementation/slice-01/open-questions.md
 
 ### S1-P17-T002 — Agent package scaffold
 
 | # | Phase | Owner | Priority | Effort | Planned Start | Planned Finish | Actual Start | Actual Finish | Status |
 |---|---|---|---|---|---|---|---|---|---|
-| 138 | P17 Local Print Agent | Backend Engineer | High | 2d | — | — | — | — | PLANNED |
+| 138 | P17 Local Print Agent | Backend Engineer | High | 2d | — | — | 2026-09-23 | — | IN_PROGRESS |
 
 - **Dependencies:** S1-P17-T001, S1-P16-T002
 - **Requirements:** REQ-AGENT-001
@@ -4051,14 +4051,14 @@ Reviewed and corrected after the agent reported: agentSourceIp took the LEFT-mos
   - `TC-AGENT-011` [unit] Config rejects `http://` server URLs and unknown keys; logger redacts token and payload fields.
 - **Acceptance criteria:**
   - `npm run build` inside `print-agent/` produces a runnable artifact in CI.
-- **Implementation notes:** —
-- **Affected files (actual):** —
+- **Implementation notes:** Built with esbuild (pinned devDependency) into one CommonJS file for Node 22+ with a SHA256SUMS file; `@/lib/print/*` is bundled so the agent validates payloads with the server's own `PrintDocument` schema and text rules. The address rules moved to the dependency-free `lib/print/address.ts` (re-exported by `lib/validation/printing.ts`) so the agent does not bundle Prisma. Agent tests live in the root Vitest projects (`tests/unit/print-agent`, `tests/static/print-agent.test.ts`). Deviation: config accepts plain `http://` for loopback hosts only (developer `next dev`); everything else must be `https://`. Verified locally (build + `version` smoke run, TC-AGENT-011 passing); the new CI `print-agent` job (ubuntu + windows) has not run yet.
+- **Affected files (actual):** print-agent/package.json, print-agent/build.mjs, print-agent/src/{main,cli,config,paths,logger,fs-atomic,version,api}.ts, lib/print/address.ts, lib/validation/printing.ts, package.json, .gitignore, .github/workflows/ci.yml, tests/unit/print-agent/config.test.ts
 
 ### S1-P17-T003 — Pairing and credential storage
 
 | # | Phase | Owner | Priority | Effort | Planned Start | Planned Finish | Actual Start | Actual Finish | Status |
 |---|---|---|---|---|---|---|---|---|---|
-| 139 | P17 Local Print Agent | Backend Engineer | Critical | 2d | — | — | — | — | PLANNED |
+| 139 | P17 Local Print Agent | Backend Engineer | Critical | 2d | — | — | 2026-09-23 | 2026-09-23 | COMPLETED |
 
 - **Dependencies:** S1-P17-T002, S1-P16-T005
 - **Requirements:** REQ-AGENT-002
@@ -4075,14 +4075,14 @@ Reviewed and corrected after the agent reported: agentSourceIp took the LEFT-mos
   - `TC-AGENT-007` [integration] After pairing, token is retrievable from the credential store, absent from `config.json` and logs.
 - **Acceptance criteria:**
   - Pairing error messages distinguish invalid code from network failure without revealing server details.
-- **Implementation notes:** —
-- **Affected files (actual):** —
+- **Implementation notes:** Deviation (recorded in Q-010): the token is stored in `credentials.json` inside an OS-restricted directory (Windows: SYSTEM + Administrators ACL set by the installer; Linux: 0700 dir, 0600 file, refused on load if group/other-readable) instead of Credential Manager/DPAPI, because DPAPI from Node needs a native module or a child process (banned, SC-VAL-06). The credential is bound to the issuing server origin: pointing config.json at another server makes the agent refuse to send the token. Pairing messages verified by tests/unit/print-agent/cli.test.ts.
+- **Affected files (actual):** print-agent/src/credentials.ts, print-agent/src/cli.ts, tests/unit/print-agent/config.test.ts, tests/unit/print-agent/cli.test.ts
 
 ### S1-P17-T004 — Poll, claim, acknowledge loop
 
 | # | Phase | Owner | Priority | Effort | Planned Start | Planned Finish | Actual Start | Actual Finish | Status |
 |---|---|---|---|---|---|---|---|---|---|
-| 140 | P17 Local Print Agent | Backend Engineer | Critical | 3d | — | — | — | — | PLANNED |
+| 140 | P17 Local Print Agent | Backend Engineer | Critical | 3d | — | — | 2026-09-23 | — | IN_PROGRESS |
 
 - **Dependencies:** S1-P17-T003
 - **Requirements:** REQ-AGENT-001, REQ-AGENT-003, REQ-AGENT-004, REQ-PRINT-007
@@ -4100,14 +4100,14 @@ Reviewed and corrected after the agent reported: agentSourceIp took the LEFT-mos
   - `TC-AGENT-012` [integration] With the server unreachable for 2 minutes the agent backs off, then resumes and prints queued jobs in order.
 - **Acceptance criteria:**
   - CPU idle < 2% and memory < 150 MB during a 1-hour idle run.
-- **Implementation notes:** —
-- **Affected files (actual):** —
+- **Implementation notes:** The loop claims one job per call and re-claims immediately while jobs keep coming, so no lease is held while earlier tickets print. Heartbeats refresh the printer list and report each printer's *probed* health. The journal is fsynced before the PRINTED ack; a journal write failure is logged and the ack still sent. 401 ends the process with exit code 2 (service managers configured not to restart-loop). TC-AGENT-008 and TC-AGENT-012 pass (tests/unit/print-agent/runner.test.ts). Remaining: the 1-hour idle CPU/memory measurement.
+- **Affected files (actual):** print-agent/src/runner.ts, print-agent/src/journal.ts, print-agent/src/fs-atomic.ts, tests/unit/print-agent/runner.test.ts, tests/unit/print-agent/transport.test.ts
 
 ### S1-P17-T005 — ESC/POS encoder
 
 | # | Phase | Owner | Priority | Effort | Planned Start | Planned Finish | Actual Start | Actual Finish | Status |
 |---|---|---|---|---|---|---|---|---|---|
-| 141 | P17 Local Print Agent | Backend Engineer | Critical | 3d | — | — | — | — | PLANNED |
+| 141 | P17 Local Print Agent | Backend Engineer | Critical | 3d | — | — | 2026-09-23 | 2026-09-23 | COMPLETED |
 
 - **Dependencies:** S1-P17-T002
 - **Requirements:** REQ-AGENT-001
@@ -4125,14 +4125,14 @@ Reviewed and corrected after the agent reported: agentSourceIp took the LEFT-mos
   - `TC-AGENT-006` [static] Agent source contains no `child_process`, `exec`, `spawn` or shell invocation using job data.
 - **Acceptance criteria:**
   - Encoder handles every `PrintDocument` block type.
-- **Implementation notes:** —
-- **Affected files (actual):** —
+- **Implementation notes:** Code page PC437 (ESC t 0) with every string re-sanitised (`lib/print/text.ts`) and transliterated to printable ASCII before wrapping, so a smuggled ESC/GS byte can never reach the printer and ₹ → "Rs" cannot overflow a line. Four line feeds before the partial cut. TC-AGENT-013 and TC-AGENT-006 pass.
+- **Affected files (actual):** print-agent/src/escpos.ts, tests/unit/print-agent/escpos.test.ts, tests/static/print-agent.test.ts
 
 ### S1-P17-T006 — Printer transports
 
 | # | Phase | Owner | Priority | Effort | Planned Start | Planned Finish | Actual Start | Actual Finish | Status |
 |---|---|---|---|---|---|---|---|---|---|
-| 142 | P17 Local Print Agent | Backend Engineer | Critical | 3d | — | — | — | — | PLANNED |
+| 142 | P17 Local Print Agent | Backend Engineer | Critical | 3d | — | — | 2026-09-23 | — | IN_PROGRESS |
 
 - **Dependencies:** S1-P17-T005
 - **Requirements:** REQ-AGENT-001, REQ-AGENT-004, REQ-PRINT-008
@@ -4151,14 +4151,14 @@ Reviewed and corrected after the agent reported: agentSourceIp took the LEFT-mos
   - `TC-AGENT-014` [integration] LAN transport delivers bytes to the TCP simulator; with the simulator stopped the job fails with PRINTER_OFFLINE and health reports OFFLINE.
 - **Acceptance criteria:**
   - Physical USB and LAN printers print the test page (recorded in S1-P17-T008).
-- **Implementation notes:** —
-- **Affected files (actual):** —
+- **Implementation notes:** LAN: raw TCP, port from the address (9100 only when omitted), addresses re-validated as private IPv4 by the agent itself. USB: Windows writes to a local printer share `\\localhost\<share>`, Linux to `/dev/usb/lpN`; both by file I/O with strict name patterns (no path traversal, no remote hosts). TC-AGENT-014 passes against the simulator. A stalled printer on Windows loopback can accept several MB into socket buffers, so `send` resolving means "handed to the connection", never "paper came out" — the ack is still the agent's best knowledge (ADR-007 §5). Remaining: physical USB and LAN printers (needs Q-011 hardware); the Windows USB share write is unverified on hardware.
+- **Affected files (actual):** print-agent/src/transports/{index,lan,usb,types}.ts, lib/print/address.ts, tests/unit/print-agent/transport.test.ts
 
 ### S1-P17-T007 — ESC/POS printer simulator
 
 | # | Phase | Owner | Priority | Effort | Planned Start | Planned Finish | Actual Start | Actual Finish | Status |
 |---|---|---|---|---|---|---|---|---|---|
-| 143 | P17 Local Print Agent | QA Engineer | High | 2d | — | — | — | — | PLANNED |
+| 143 | P17 Local Print Agent | QA Engineer | High | 2d | — | — | 2026-09-23 | 2026-09-23 | COMPLETED |
 
 - **Dependencies:** S1-P17-T002
 - **Requirements:** REQ-TEST-011
@@ -4175,14 +4175,14 @@ Reviewed and corrected after the agent reported: agentSourceIp took the LEFT-mos
   - `TC-AGENT-015` [integration] Simulator decodes a golden KOT byte stream into expected text and supports each fault mode.
 - **Acceptance criteria:**
   - Runs in CI as a background service.
-- **Implementation notes:** —
-- **Affected files (actual):** —
+- **Implementation notes:** Started in-process by the unit and integration suites (ephemeral port) rather than as a separate CI service container — same effect, no port coordination. Fault modes: offline (listener closed → refused), reset, stall. `npm run printer:simulator` runs it standalone and prints decoded tickets. TC-AGENT-015 passes.
+- **Affected files (actual):** tools/printer-simulator/{server,decode,cli}.ts, package.json, tests/unit/print-agent/transport.test.ts
 
 ### S1-P17-T008 — End-to-end printing verification
 
 | # | Phase | Owner | Priority | Effort | Planned Start | Planned Finish | Actual Start | Actual Finish | Status |
 |---|---|---|---|---|---|---|---|---|---|
-| 144 | P17 Local Print Agent | QA Engineer | Critical | 2d | — | — | — | — | PLANNED |
+| 144 | P17 Local Print Agent | QA Engineer | Critical | 2d | — | — | 2026-09-23 | — | IN_PROGRESS |
 
 - **Dependencies:** S1-P17-T004, S1-P17-T006, S1-P17-T007, S1-P16-T003
 - **Requirements:** REQ-AGENT-001, REQ-PRINT-001, REQ-PRINT-011, REQ-TEST-011
@@ -4200,14 +4200,14 @@ Reviewed and corrected after the agent reported: agentSourceIp took the LEFT-mos
   - `TC-AGENT-009` [e2e] Order acceptance results in a printed KOT on the simulator within 10 s and PRINTED status in UI; physical printer runs recorded.
 - **Acceptance criteria:**
   - Both physical transports verified.
-- **Implementation notes:** —
-- **Affected files (actual):** —
+- **Implementation notes:** Integration form done (tests/integration/printing/agent-runtime.test.ts): console pairing code → real RH-AGT-01 pairing → printers assigned through `updatePrinterAction` → order accepted (KOT job) + `printReceiptAction` (bill) + test page → the real agent runner claims through the route handlers and prints to the simulator → all three PRINTED, kitchen printer ONLINE; an offline printer yields retry/PRINTER_OFFLINE/OFFLINE, never PRINTED; Tenant B's agent receives nothing; a revoked agent stops. Remaining: the Playwright form against a running server, and the physical USB + LAN runs with photos.
+- **Affected files (actual):** tests/integration/printing/agent-runtime.test.ts
 
 ### S1-P17-T009 — Agent packaging and installation guide
 
 | # | Phase | Owner | Priority | Effort | Planned Start | Planned Finish | Actual Start | Actual Finish | Status |
 |---|---|---|---|---|---|---|---|---|---|
-| 145 | P17 Local Print Agent | DevOps Engineer | High | 3d | — | — | — | — | PLANNED |
+| 145 | P17 Local Print Agent | DevOps Engineer | High | 3d | — | — | 2026-09-23 | — | IN_PROGRESS |
 
 - **Dependencies:** S1-P17-T006
 - **Requirements:** REQ-AGENT-005
@@ -4224,14 +4224,14 @@ Reviewed and corrected after the agent reported: agentSourceIp took the LEFT-mos
   - `TC-AGENT-010` [manual] Clean install on each approved OS runs as a service after reboot, pairs, and prints a test page.
 - **Acceptance criteria:**
   - Install guide followed successfully by someone other than the developer.
-- **Implementation notes:** —
-- **Affected files (actual):** —
+- **Implementation notes:** Windows: `install.ps1` verifies the bundle SHA-256, ACL-restricts `%ProgramData%\RasoiOS\PrintAgent`, pairs, and registers a boot-time SYSTEM scheduled task with restart-on-failure. Linux: `install.sh` verifies the checksum, creates `rasoios-agent` (group lp), pairs as that user, enables a hardened systemd unit with `RestartPreventExitStatus=2`. Release workflow zips both per OS on a `print-agent-v*` tag. PairAgentDialog now shows the exact install command with the code (it previously described a "Pair this device" screen that does not exist). Remaining: TC-AGENT-010 clean installs on each OS by someone other than the developer; the scripts have not yet been executed on a real machine.
+- **Affected files (actual):** print-agent/packaging/windows/{install,uninstall}.ps1, print-agent/packaging/linux/{install.sh,uninstall.sh,rasoios-print-agent.service}, .github/workflows/print-agent-release.yml, knowledge/operations/print-agent.md, app/restaurant/printing/pair-agent-dialog.tsx
 
 ### S1-P17-T010 — Agent security review
 
 | # | Phase | Owner | Priority | Effort | Planned Start | Planned Finish | Actual Start | Actual Finish | Status |
 |---|---|---|---|---|---|---|---|---|---|
-| 146 | P17 Local Print Agent | Security Engineer | High | 1d | — | — | — | — | PLANNED |
+| 146 | P17 Local Print Agent | Security Engineer | High | 1d | — | — | 2026-09-23 | — | IN_PROGRESS |
 
 - **Dependencies:** S1-P17-T009
 - **Requirements:** REQ-SEC-002, REQ-AGENT-002
@@ -4248,8 +4248,8 @@ Reviewed and corrected after the agent reported: agentSourceIp took the LEFT-mos
   - `TC-AGENT-016` [review] Signed checklist with evidence; agent opens no listening sockets (verified with `netstat`).
 - **Acceptance criteria:**
   - No open High/Critical findings.
-- **Implementation notes:** —
-- **Affected files (actual):** —
+- **Implementation notes:** Automated part in tests/static/print-agent.test.ts: no child_process/exec/spawn/fork/eval, no `rejectUnauthorized`/`NODE_TLS_REJECT_UNAUTHORIZED`, no `createServer`/`listen`, `redirect: "error"` on every authenticated request, version pinned to the package. Also by design: server responses schema-validated, token bound to its issuing origin, installers verify SHA-256, Linux service unprivileged with systemd hardening. Remaining: the signed review and the `netstat` evidence on an installed agent.
+- **Affected files (actual):** tests/static/print-agent.test.ts
 
 ## P18 — Transactions
 

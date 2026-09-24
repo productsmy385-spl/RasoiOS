@@ -4,7 +4,7 @@ import { ConfigError, loadAgentConfig, parseAgentConfig, saveAgentConfig, type A
 import { CredentialError, FileCredentialStore } from "./credentials";
 import { PrintedJournal } from "./journal";
 import { createLogger, type Logger } from "./logger";
-import { agentPaths, type AgentPaths } from "./paths";
+import { agentPaths, type AgentEnv, type AgentPaths } from "./paths";
 import { FatalAgentError, PrintAgentRunner } from "./runner";
 import { transportFor } from "./transports";
 import { AGENT_VERSION } from "./version";
@@ -22,7 +22,7 @@ import { AGENT_VERSION } from "./version";
 export const EXIT = { OK: 0, ERROR: 1, NEEDS_PAIRING: 2 } as const;
 
 export type CliIo = { out: (line: string) => void; err: (line: string) => void };
-export type CliOptions = { env?: NodeJS.ProcessEnv; fetch?: FetchLike; io?: CliIo; signal?: AbortSignal; logger?: Logger };
+export type CliOptions = { env?: AgentEnv; fetch?: FetchLike; io?: CliIo; signal?: AbortSignal; logger?: Logger };
 
 const USAGE = [
   "Usage:",

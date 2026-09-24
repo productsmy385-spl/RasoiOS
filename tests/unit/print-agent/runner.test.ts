@@ -78,7 +78,7 @@ class ScriptedServer implements AgentApiLike {
 let simulator: PrinterSimulator;
 let dir: string;
 let server: ScriptedServer;
-const logger = createLogger("error");
+const logger = createLogger("error", () => undefined);
 
 async function newRunner(journal?: PrintedJournal) {
   const j = journal ?? new PrintedJournal(path.join(dir, "journal.json"), logger);

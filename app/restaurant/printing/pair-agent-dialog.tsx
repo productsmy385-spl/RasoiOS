@@ -29,6 +29,8 @@ export function PairAgentDialog({ open, onClose, onPaired }: { open: boolean; on
   const [formError, setFormError] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState(false);
   const [nowMs, setNowMs] = React.useState(() => Date.now());
+  // The agent talks to this same site; read on the client so the command shows the address the admin is using.
+  const serverOrigin = typeof window === "undefined" ? "https://<this-site>" : window.location.origin;
 
   React.useEffect(() => {
     if (!open) return;
@@ -104,10 +106,15 @@ export function PairAgentDialog({ open, onClose, onPaired }: { open: boolean; on
             <p className="text-caption text-fg-secondary" aria-live="polite">
               {remainingLabel(issued.expiresAt, nowMs)}
             </p>
-            <ol className="flex list-decimal flex-col gap-1 pl-5 text-body text-fg-secondary">
-              <li>Open the RASOIOS print agent on the restaurant PC.</li>
-              <li>Choose Pair this device and type the code above.</li>
-              <li>Assign this agent to each printer on the Printers tab.</li>
+            <ol className="flex list-decimal flex-col gap-2 pl-5 text-body text-fg-secondary">
+              <li>On the restaurant PC, unzip the RASOIOS print agent download (Windows or Linux) and open a terminal as administrator in that folder.</li>
+              <li>
+                Run the installer with this code:
+                <code className="mt-1 block overflow-x-auto whitespace-pre rounded-xl border border-border-subtle bg-raised px-3 py-2 text-caption text-fg-primary">
+                  {`Windows: powershell -ExecutionPolicy Bypass -File install.ps1 -ServerUrl ${serverOrigin} -PairingCode ${issued.pairingCode}\nLinux:   sudo sh install.sh ${serverOrigin} ${issued.pairingCode}`}
+                </code>
+              </li>
+              <li>Assign this agent to each printer on the Printers tab, then send a test print.</li>
             </ol>
           </div>
         ) : (

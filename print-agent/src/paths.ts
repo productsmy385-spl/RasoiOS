@@ -10,18 +10,19 @@ import path from "node:path";
  * `RASOIOS_AGENT_HOME` overrides both (development and tests).
  */
 export type AgentPaths = { home: string; config: string; credentials: string; journal: string };
+export type AgentEnv = Readonly<Record<string, string | undefined>>;
 
-export function agentPaths(env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform): AgentPaths {
+export function agentPaths(env: AgentEnv = process.env, platform: NodeJS.Platform = process.platform): AgentPaths {
+  const p = env.RASOIOS_AGENT_HOME ? path : platform === "win32" ? path.win32 : path.posix;
   const home = env.RASOIOS_AGENT_HOME
     ? path.resolve(env.RASOIOS_AGENT_HOME)
     : platform === "win32"
-      ? path.win32.join(env.ProgramData ?? "C:\\ProgramData", "RasoiOS", "PrintAgent")
+      ? p.join(env.ProgramData ?? "C:\\ProgramData", "RasoiOS", "PrintAgent")
       : "/var/lib/rasoios-print-agent";
-  const join = platform === "win32" && !env.RASOIOS_AGENT_HOME ? path.win32.join : path.join;
   return {
     home,
-    config: join(home, "config.json"),
-    credentials: join(home, "credentials.json"),
-    journal: join(home, "journal.json"),
+    config: p.join(home, "config.json"),
+    credentials: p.join(home, "credentials.json"),
+    journal: p.join(home, "journal.json"),
   };
 }

@@ -50,6 +50,8 @@ npm run prisma:gen    # Generate Prisma Client
 npm run prisma:migrate # Run Prisma migrations
 npm run db:local      # Run embedded PostgreSQL 16 locally (no Docker needed)
 npm run db:seed       # Seed the local database
+npm run agent:build   # Build the local print agent bundle (print-agent/dist)
+npm run printer:simulator # ESC/POS printer simulator for development (tools/printer-simulator)
 ```
 
 ---

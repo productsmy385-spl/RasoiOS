@@ -25,8 +25,7 @@ export class AgentApiError extends Error {
   }
 }
 
-const printerHealth = z.enum(["UNKNOWN", "ONLINE", "OFFLINE", "ERROR"]);
-export type PrinterHealthValue = z.infer<typeof printerHealth>;
+export type PrinterHealthValue = "UNKNOWN" | "ONLINE" | "OFFLINE" | "ERROR";
 
 export const agentPrinterSchema = z.object({
   printerId: z.string().uuid(),

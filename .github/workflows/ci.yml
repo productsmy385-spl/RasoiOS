@@ -133,6 +133,21 @@ jobs:
       - run: npx prisma generate
       - run: npm run build
 
+  # S1-P17-T002: the local print agent builds into one runnable file, on both target OSes (Q-010).
+  print-agent:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
+      - run: npm ci
+      - run: npm run agent:build
+      - run: node print-agent/dist/rasoios-print-agent.cjs version
+      - run: npx vitest run tests/unit/print-agent tests/static/print-agent.test.ts
+
   audit:
     runs-on: ubuntu-latest
     steps:

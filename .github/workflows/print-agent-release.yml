@@ -1,0 +1,40 @@
+# Print agent release (S1-P17-T009, Q-010). Push a tag `print-agent-v<version>` matching print-agent/package.json.
+# Publishes one zip per OS containing the bundle, SHA256SUMS and the installer scripts; the installers verify the
+# checksum before installing.
+name: Print agent release
+
+on:
+  push:
+    tags: ["print-agent-v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "24", cache: npm }
+      - run: npm ci
+      - name: Tag matches the agent version
+        run: |
+          VERSION="$(node -p "require('./print-agent/package.json').version")"
+          test "${GITHUB_REF_NAME}" = "print-agent-v${VERSION}"
+      - run: npx vitest run tests/unit/print-agent tests/static/print-agent.test.ts
+      - run: npm run agent:build
+      - name: Package
+        run: |
+          mkdir -p out/windows out/linux
+          cp print-agent/dist/rasoios-print-agent.cjs print-agent/dist/SHA256SUMS out/windows/
+          cp print-agent/dist/rasoios-print-agent.cjs print-agent/dist/SHA256SUMS out/linux/
+          cp print-agent/packaging/windows/*.ps1 out/windows/
+          cp print-agent/packaging/linux/* out/linux/
+          (cd out/windows && zip -r "../rasoios-print-agent-${GITHUB_REF_NAME#print-agent-v}-windows.zip" .)
+          (cd out/linux && zip -r "../rasoios-print-agent-${GITHUB_REF_NAME#print-agent-v}-linux.zip" .)
+          (cd out && sha256sum *.zip > SHA256SUMS)
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" out/*.zip out/SHA256SUMS --title "Print agent ${GITHUB_REF_NAME#print-agent-v}" --notes "Install guide: knowledge/operations/print-agent.md"

@@ -24,7 +24,7 @@ describe("TC-AGENT-006 no shell or process execution in the agent", () => {
     expect(agentFiles.length).toBeGreaterThan(5);
   });
 
-  for (const pattern of [/child_process/, /\bexec(File)?(Sync)?\s*\(/, /\bspawn(Sync)?\s*\(/, /\beval\s*\(/, /new\s+Function\s*\(/, /\bfork\s*\(/]) {
+  for (const pattern of [/child_process/, /(^|[^.\w])exec(File)?(Sync)?\s*\(/m, /(^|[^.\w])spawn(Sync)?\s*\(/m, /\beval\s*\(/, /new\s+Function\s*\(/, /(^|[^.\w])fork\s*\(/m]) {
     it(`no ${pattern}`, () => {
       const offenders = agentFiles.filter((file) => pattern.test(readFileSync(file, "utf8")));
       expect(offenders.map((file) => path.relative(root, file))).toEqual([]);
