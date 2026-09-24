@@ -9,14 +9,17 @@ import { IMAGE_FETCH_MAX_BYTES, fetchAllowlistedImage } from "@/lib/media/fetch-
 const HOSTS = ["images.example.com"];
 
 function imageResponse(body: Uint8Array, contentType = "image/png", headers: Record<string, string> = {}): Response {
-  return new Response(body, { status: 200, headers: { "content-type": contentType, ...headers } });
+  return new Response(body.slice().buffer as ArrayBuffer, { status: 200, headers: { "content-type": contentType, ...headers } });
 }
 
 afterEach(() => vi.unstubAllGlobals());
 
 /** Installs a spy as global fetch and returns it. */
 function spyFetch(impl: (url: string) => Promise<Response> = async () => imageResponse(new Uint8Array([1, 2, 3]))) {
-  const spy = vi.fn(async (input: RequestInfo | URL) => impl(String(input)));
+  const spy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    void init;
+    return impl(String(input));
+  });
   vi.stubGlobal("fetch", spy);
   return spy;
 }

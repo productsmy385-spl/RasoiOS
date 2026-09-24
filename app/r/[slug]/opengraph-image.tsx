@@ -52,7 +52,7 @@ export default async function OpengraphImage({ params }: Params) {
       >
         <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
           {logoSrc ? (
-            // eslint-disable-next-line @next/next/no-img-element -- ImageResponse renders to PNG; next/image cannot run here.
+            // A plain <img> on purpose: ImageResponse renders to PNG, where next/image cannot run.
             <img src={logoSrc} alt="" width={112} height={112} style={{ width: 112, height: 112, borderRadius: 24, objectFit: "cover" }} />
           ) : (
             <div

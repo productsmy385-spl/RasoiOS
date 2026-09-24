@@ -54,8 +54,9 @@ describe("TC-ADMIN-003 create tenant", () => {
     expect(clerkStub.requests[0].body).toMatchObject({ email_address: "owner.coastal+clerk_test@example.com", redirect_url: `${APP_URL}/sign-up`, notify: true });
 
     // Both audit rows, written by the transaction that created the tenant (SC-AUD-02).
-    const audits = await db.auditLog.findMany({ where: { tenantId: data.tenantId }, orderBy: { action: "asc" } });
-    expect(audits.map((a) => a.action)).toEqual(["tenant.created", "tenant_admin.invited"]);
+    // Sorted in JS: ORDER BY on text follows the database collation, and en_US (CI) ignores punctuation, C does not.
+    const audits = await db.auditLog.findMany({ where: { tenantId: data.tenantId } });
+    expect(audits.map((a) => a.action).sort()).toEqual(["tenant.created", "tenant_admin.invited"]);
     for (const row of audits) expect(row).toMatchObject({ actorType: "USER", actorUserId: superAdminId, actorRole: "SUPER_ADMIN" });
     const created = audits.find((a) => a.action === "tenant.created")!;
     const invited = audits.find((a) => a.action === "tenant_admin.invited")!;

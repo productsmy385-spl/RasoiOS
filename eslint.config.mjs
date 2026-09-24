@@ -84,6 +84,12 @@ const eslintConfig = [
     },
   },
   {
+    // ImageResponse renders JSX to PNG; next/image cannot run there. (A file-level rule instead of an inline directive,
+    // which is reported as "unused" in environments where the rule does not fire.)
+    files: ["app/**/opengraph-image.tsx"],
+    rules: { "@next/next/no-img-element": "off" },
+  },
+  {
     // The integration harness runs the real `prisma migrate deploy` and issues CREATE/DROP DATABASE DDL.
     // Test infrastructure only: never imported by application code (S1-P02-T008).
     files: ["tests/integration/setup/**"],
