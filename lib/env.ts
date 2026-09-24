@@ -14,6 +14,9 @@ const PLACEHOLDER = /placeholder|example|changeme|your[_-]?(key|secret)/i;
 
 const secretish = /SECRET|PASSWORD|TOKEN|DATABASE|PRIVATE/i;
 
+/** Hosts that never leave the machine; exempt from the production transport-security rules below. */
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
+
 const nonPlaceholder = z
   .string({ required_error: "is required" })
   .trim()
@@ -61,14 +64,22 @@ const envSchema = z
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== "production") return;
-    if (!env.NEXT_PUBLIC_APP_URL.startsWith("https://")) {
+    // A production build served on loopback (CI end-to-end runs, a local `next start`) never crosses a network, so
+    // there is nothing for TLS to protect. Every other host — including private addresses — still needs https.
+    let appHost = "";
+    try {
+      appHost = new URL(env.NEXT_PUBLIC_APP_URL).hostname;
+    } catch {
+      // Malformed URLs are reported by the field's own rule.
+    }
+    if (!env.NEXT_PUBLIC_APP_URL.startsWith("https://") && !LOOPBACK_HOSTS.has(appHost)) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["NEXT_PUBLIC_APP_URL"], message: "must use https in production" });
     }
     // SC-DB-01: TLS to PostgreSQL. Railway private-network hosts (*.railway.internal) are accepted pending
-    // verification of transport encryption in S1-P27-T002 [assumption].
+    // verification of transport encryption in S1-P27-T002 [assumption]; a database on loopback needs no TLS.
     const url = env.DATABASE_URL;
     const host = url.match(/@([^:/?]+)/)?.[1] ?? "";
-    if (!/[?&]sslmode=(require|verify-ca|verify-full)\b/.test(url) && !host.endsWith(".railway.internal")) {
+    if (!/[?&]sslmode=(require|verify-ca|verify-full)\b/.test(url) && !host.endsWith(".railway.internal") && !LOOPBACK_HOSTS.has(host)) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["DATABASE_URL"], message: "must set sslmode=require in production" });
     }
   });

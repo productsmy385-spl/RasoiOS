@@ -95,6 +95,16 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: rasoios
+          POSTGRES_PASSWORD: rasoios
+          POSTGRES_DB: rasoios_e2e
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U rasoios" --health-interval 5s --health-timeout 5s --health-retries 20
     env:
       CI: "true"
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
@@ -107,6 +117,9 @@ jobs:
         with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
       - run: npm ci
       - run: npx prisma generate
+      # The app under test needs a migrated, seeded database (public site specs use the seeded tenants).
+      - run: npx prisma migrate deploy
+      - run: npm run db:seed
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test --project=desktop-chromium --project=tablet --project=mobile
       - uses: actions/upload-artifact@v4

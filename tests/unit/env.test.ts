@@ -75,9 +75,25 @@ describe("TC-FOUND-003 environment validation", () => {
   });
 
   it("requires https and database TLS in production", () => {
-    const problems = problemsOf({ ...valid, NODE_ENV: "production" });
+    const problems = problemsOf({
+      ...valid,
+      NODE_ENV: "production",
+      NEXT_PUBLIC_APP_URL: "http://app.example-restaurant.test",
+      DATABASE_URL: "postgresql://app:pw@db.host:5432/rasoios",
+    });
     expect(problems).toContain("NEXT_PUBLIC_APP_URL: must use https in production");
     expect(problems).toContain("DATABASE_URL: must set sslmode=require in production");
+
+    // Private-network addresses are still networks: no exemption.
+    const lan = problemsOf({ ...valid, NODE_ENV: "production", NEXT_PUBLIC_APP_URL: "http://192.168.1.20:3000", DATABASE_URL: "postgresql://app:pw@10.0.0.5:5432/rasoios" });
+    expect(lan).toContain("NEXT_PUBLIC_APP_URL: must use https in production");
+    expect(lan).toContain("DATABASE_URL: must set sslmode=require in production");
+
+    // Loopback never crosses a network (CI end-to-end runs a production build on localhost).
+    expect(problemsOf({ ...valid, NODE_ENV: "production" })).toEqual([]);
+    expect(problemsOf({ ...valid, NODE_ENV: "production", NEXT_PUBLIC_APP_URL: "http://127.0.0.1:3100", DATABASE_URL: "postgresql://app:pw@127.0.0.1:5432/rasoios" })).toEqual([]);
+    // A look-alike host is not loopback.
+    expect(problemsOf({ ...valid, NODE_ENV: "production", NEXT_PUBLIC_APP_URL: "http://localhost.evil.test" })).toContain("NEXT_PUBLIC_APP_URL: must use https in production");
 
     expect(
       problemsOf({
