@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EnvValidationError, parseEnv } from "@/lib/env";
+import { applyPlatformDefaults, EnvValidationError, parseEnv } from "@/lib/env";
 
 // TC-FOUND-003 — environment validation fails fast and never echoes values (S1-P01-T004).
 const valid = {
@@ -103,6 +103,25 @@ describe("TC-FOUND-003 environment validation", () => {
         DATABASE_URL: "postgresql://app:pw@db.host:5432/rasoios?sslmode=require",
       }),
     ).toEqual([]);
+  });
+
+  it("on Railway, derives NEXT_PUBLIC_APP_URL from RAILWAY_PUBLIC_DOMAIN unless it is set explicitly", () => {
+    const railway: Record<string, string | undefined> = { ...valid, NEXT_PUBLIC_APP_URL: undefined, RAILWAY_PUBLIC_DOMAIN: "rasoios-production.up.railway.app" };
+    applyPlatformDefaults(railway);
+    expect(railway.NEXT_PUBLIC_APP_URL).toBe("https://rasoios-production.up.railway.app");
+    expect(problemsOf({ ...railway, NODE_ENV: "production", DATABASE_URL: "postgresql://app:pw@postgres.railway.internal:5432/railway" })).toEqual([]);
+
+    const explicit: Record<string, string | undefined> = { ...valid, NEXT_PUBLIC_APP_URL: "https://app.akshaypatra.test", RAILWAY_PUBLIC_DOMAIN: "x.up.railway.app" };
+    applyPlatformDefaults(explicit);
+    expect(explicit.NEXT_PUBLIC_APP_URL).toBe("https://app.akshaypatra.test");
+
+    const hostile: Record<string, string | undefined> = { ...valid, NEXT_PUBLIC_APP_URL: undefined, RAILWAY_PUBLIC_DOMAIN: "evil.test/@x" };
+    applyPlatformDefaults(hostile);
+    expect(hostile.NEXT_PUBLIC_APP_URL).toBeUndefined();
+
+    const none: Record<string, string | undefined> = { ...valid, NEXT_PUBLIC_APP_URL: undefined };
+    applyPlatformDefaults(none);
+    expect(problemsOf(none)).toContain("NEXT_PUBLIC_APP_URL: is required");
   });
 
   it("validates optional webhook secret and image host list formats", () => {

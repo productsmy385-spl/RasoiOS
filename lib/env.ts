@@ -135,8 +135,24 @@ function describeIssue(issue: z.ZodIssue): string {
 let cached: ServerEnv | undefined;
 
 /** Validated environment for server code. Throws EnvValidationError on first use if invalid. */
+/**
+ * Hosting-platform defaults, applied to the real environment before validation. On Railway, NEXT_PUBLIC_APP_URL
+ * falls back to the public domain Railway assigns the service (`RAILWAY_PUBLIC_DOMAIN`, always served over https).
+ * An explicit NEXT_PUBLIC_APP_URL always wins — set it once a custom domain is attached. Server code reads
+ * process.env at request time, so the default reaches every consumer.
+ */
+export function applyPlatformDefaults(env: Record<string, string | undefined>): void {
+  const railwayDomain = env.RAILWAY_PUBLIC_DOMAIN?.trim();
+  if (!env.NEXT_PUBLIC_APP_URL?.trim() && railwayDomain && /^[a-z0-9.-]+$/i.test(railwayDomain)) {
+    env.NEXT_PUBLIC_APP_URL = `https://${railwayDomain}`;
+  }
+}
+
 export function getEnv(): ServerEnv {
-  cached ??= parseEnv(process.env);
+  if (!cached) {
+    applyPlatformDefaults(process.env);
+    cached = parseEnv(process.env);
+  }
   return cached;
 }
 
