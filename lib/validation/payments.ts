@@ -51,6 +51,8 @@ export const createRefundSchema = strictObject({
 export const TRANSACTION_RANGE_MAX_DAYS = 92;
 
 export const listTransactionsSchema = strictObject({
+  /** One order's own ledger, for the payment panel on `/restaurant/orders/[orderId]` (S1-P18-T006). */
+  orderId: z.string().uuid("Invalid order id").optional(),
   from: businessDateParam.optional(),
   to: businessDateParam.optional(),
   type: z.nativeEnum(TransactionType).optional(),

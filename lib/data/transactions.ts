@@ -57,6 +57,7 @@ function filterWhere(ctx: TenantContext, filters: ListTransactionsFilters): Pris
   return {
     tenantId: ctx.tenantId,
     ...(from || to ? { businessDate: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}),
+    ...(filters.orderId ? { orderId: filters.orderId } : {}),
     ...(filters.type ? { type: filters.type } : {}),
     ...(filters.method ? { paymentMethod: filters.method } : {}),
     ...(filters.status ? { status: filters.status } : {}),

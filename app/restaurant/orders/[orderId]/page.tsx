@@ -10,7 +10,11 @@ import { OrderDetailActions } from "@/components/orders/order-detail-actions";
 import { OrderLinesTable } from "@/components/orders/order-lines-table";
 import { OrderTimeline } from "@/components/orders/order-timeline";
 import { ORDER_TYPE_ICONS, ORDER_TYPE_LABELS, PRIORITY_LABELS } from "@/components/orders/order-labels";
+import { PaymentPanel } from "@/components/transactions/payment-panel";
 import { requireTenantPage } from "@/lib/auth/guards";
+import { hasPermission } from "@/lib/auth/permissions";
+import type { TransactionListItem } from "@/lib/data/transactions";
+import { listTransactions } from "@/lib/data/transactions";
 import { NotFoundError } from "@/lib/errors";
 import { getOrderDetail } from "@/lib/services/orders";
 import { formatBusinessDate, formatInZone, formatMoney } from "@/lib/ui/format";
@@ -54,6 +58,9 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ or
     throw error;
   });
   const { order, timeline, allowedActions } = view;
+  // This order's own ledger, for the payment panel. Only for roles that may see money — the loader already decided
+  // that, and asking for it otherwise would be reading what the projection deliberately withheld.
+  const ledger: TransactionListItem[] = view.canSeeMoney ? (await listTransactions(ctx, { orderId: order.id, limit: 50 })).items : [];
   const timezone = ctx.restaurant.timezone;
   const TypeIcon = ORDER_TYPE_ICONS[order.orderType];
   const showMoney = order.totalAmount !== null;
@@ -178,27 +185,21 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ or
               <CardHeader>
                 <CardTitle>Payment</CardTitle>
               </CardHeader>
-              <dl className="flex flex-col gap-2">
-                <div className="flex justify-between gap-4">
-                  <dt className="text-body text-fg-secondary">Paid</dt>
-                  <dd className="text-body text-numeric text-fg-primary">{money(order.paidAmount, order.currencyCode)}</dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-body text-fg-secondary">Refunded</dt>
-                  <dd className="text-body text-numeric text-fg-primary">{money(order.refundedAmount, order.currencyCode)}</dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-subheading text-fg-primary">Balance due</dt>
-                  <dd className="text-subheading text-numeric text-fg-primary">{money(order.balanceDue, order.currencyCode)}</dd>
-                </div>
-              </dl>
-              <p className="mt-3 text-caption text-fg-secondary">
-                Payments and refunds are recorded in{" "}
-                <Link href="/restaurant/transactions" className="text-fg-accent hover:underline">
-                  Transactions
-                </Link>
-                .
-              </p>
+              <PaymentPanel
+                orderId={order.id}
+                orderNumber={order.orderNumber}
+                currencyCode={order.currencyCode}
+                paidAmount={order.paidAmount}
+                refundedAmount={order.refundedAmount}
+                balanceDue={order.balanceDue}
+                paymentStatus={order.paymentStatus}
+                ledger={ledger}
+                can={{
+                  recordPayment: hasPermission(ctx, "payment:record"),
+                  refund: hasPermission(ctx, "refund:create"),
+                  complete: allowedActions.includes("COMPLETED"),
+                }}
+              />
             </Card>
           )}
 

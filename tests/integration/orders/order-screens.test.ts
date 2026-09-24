@@ -10,6 +10,7 @@ import { OrderCustomerPanel } from "@/components/orders/order-customer-panel";
 import { OrderDetailActions } from "@/components/orders/order-detail-actions";
 import { OrderEntry } from "@/components/orders/order-entry";
 import { OrderLinesTable } from "@/components/orders/order-lines-table";
+import { PaymentPanel } from "@/components/transactions/payment-panel";
 import { OrderTimeline } from "@/components/orders/order-timeline";
 import { testDb } from "../setup/db";
 import { asSeedUser, invokeAction, invokeLoader, seedOnce, seeded, tenantIdOf } from "../helpers/actors";
@@ -176,7 +177,10 @@ describe("TC-ORDER-017 order detail (/restaurant/orders/[orderId])", () => {
 
     const rendered = textOf(page);
     expect(rendered).toContain("Kitchen tickets");
-    expect(rendered).toContain("Balance due");
+    // The balance now lives in the client PaymentPanel, so it is asserted on what the page hands it (S1-P18-T006).
+    const payment = requireComponent<React.ComponentProps<typeof PaymentPanel>>(page, PaymentPanel, "PaymentPanel");
+    expect(payment.balanceDue).not.toBeNull();
+    expect(payment.can.recordPayment).toBe(true);
 
     const actions = requireComponent<React.ComponentProps<typeof OrderDetailActions>>(page, OrderDetailActions, "OrderDetailActions");
     expect(actions.allowedActions).toContain("CANCELLED");
@@ -188,7 +192,8 @@ describe("TC-ORDER-017 order detail (/restaurant/orders/[orderId])", () => {
   it("hides money and the customer panel from the kitchen", async () => {
     await asSeedUser("A", "KITCHEN");
     const page = await invokeLoader(OrderDetailPage, params(seeded("A", "order:o3")));
-    expect(textOf(page)).not.toContain("Balance due");
+    // KITCHEN may not see money at all: the panel is not on the page, and no ledger row was even loaded.
+    expect(findComponent(page, PaymentPanel)).toBeNull();
     const actions = requireComponent<React.ComponentProps<typeof OrderDetailActions>>(page, OrderDetailActions, "OrderDetailActions");
     expect(actions.allowedActions).not.toContain("SET_CUSTOMER");
   });
