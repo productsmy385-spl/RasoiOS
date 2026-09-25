@@ -1,4 +1,8 @@
+import { palette, semanticTokens } from "@/lib/ui/tokens";
 import { axeCheck, expect, test } from "./fixtures/axe";
+
+/** "#38BD15" → "rgb(56, 189, 21)", the form `getComputedStyle` returns. */
+const asRendered = (hex: string) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(", ")})`;
 
 // TC-DS-015 (landing page) and TC-DS-007 (self-hosted fonts), now on Brand v2 (RASOIOS-ADR-013).
 test.describe("landing page", () => {
@@ -36,17 +40,21 @@ test.describe("landing page", () => {
 
   test("paints the Brand v2 palette, not the amber/emerald v1 one", async ({ page }) => {
     await page.goto("/");
-    // The canvas is surface-900 #0B1110 and the primary CTA is primary-400 #40BD06 with #070B0A text (8.01:1).
+    // Read from the tokens rather than pinned literals: the point is that the page paints what `lib/ui/tokens.ts`
+    // says, so a deliberate palette change (ADR-018) moves the expectation with it, while a page that drifts off the
+    // design system still fails. Only the v1 palette below is hardcoded, because that one must never come back.
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe("rgb(11, 17, 16)");
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(asRendered(semanticTokens.dark.surface));
     const cta = page.getByRole("link", { name: "Sign in to your restaurant" });
     const style = await cta.evaluate((el) => {
       const computed = getComputedStyle(el);
       return { background: computed.backgroundColor, color: computed.color, height: computed.height };
     });
-    expect(style.background).toBe("rgb(64, 189, 6)");
-    expect(style.color).toBe("rgb(7, 11, 10)");
+    expect(style.background).toBe(asRendered(palette.primary[400]));
+    expect(style.color).toBe(asRendered(semanticTokens.dark["on-primary"]));
     expect(Number.parseFloat(style.height)).toBeGreaterThanOrEqual(44);
+    // The v1 amber CTA must never return, whatever the current palette is.
+    expect(style.background).not.toBe("rgb(217, 119, 6)");
   });
 
   test("the header is a glass-1 surface with an opaque fallback", async ({ page }) => {
