@@ -1,11 +1,12 @@
-import { LogIn, Store } from "lucide-react";
+import { LogIn } from "lucide-react";
 import Link from "next/link";
 import { JsonLd, restaurantJsonLd } from "@/lib/seo/json-ld";
 import { OpenNowBadge } from "./hours";
 import { SiteImage } from "./primitives";
+import { SiteMenu } from "./site-menu";
 import { SiteSections } from "./sections";
 import { siteThemeStyle, surfaceThemeAttribute } from "./theme";
-import { siteNavLinks, socialLinks, type SiteView } from "./site-view";
+import { monogram, primaryNavLinks, siteNavLinks, socialLinks, type SiteView } from "./site-view";
 import { appUrl } from "@/lib/env";
 
 /**
@@ -38,60 +39,83 @@ function staffSignInHref(): string {
 }
 
 /**
+ * The restaurant's mark: its uploaded logo, or — when it has none — its initials on its own primary colour. Never the
+ * platform's mark (ADR-013 §6: the public site is the restaurant's).
+ */
+function BrandMark({ name, logoUrl }: { name: string; logoUrl: string | null }) {
+  if (logoUrl) return <SiteImage src={logoUrl} alt="" displayWidth={40} className="h-10 w-10 shrink-0 rounded-xl" />;
+  return (
+    <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-action-primary font-display text-subheading text-action-primary-fg">
+      {monogram(name)}
+    </span>
+  );
+}
+
+/**
  * The public header: the restaurant's mark, its own sections, whether it is open, and the staff door.
  *
  * Sticky `glass-1` in the restaurant's theme, so the way back stays reachable down a long menu — the sections were
  * already written with `scroll-mt-20` for exactly this, so an anchored heading clears the bar instead of hiding under
  * it. `glass-1` falls back to an opaque surface where `backdrop-filter` is unsupported (ADR-013 §2).
  *
- * The section links wrap onto their own row below 768 px rather than sharing one horizontal scroller with the
- * open/closed badge and the staff button, which on a phone put three unrelated things in one strip and hid whichever
- * came last. One `<nav>` in both layouts, re-ordered with CSS, so there is a single navigation landmark either way.
+ * One 64 px row at every width, and nothing in it ever scrolls or wraps:
+ * - `xl` and up: mark · up to five most-used sections · open/closed · Staff login · ☰. Nine section names never fit
+ *   beside a long restaurant name, so the inline set is capped and the drawer always holds all of them.
+ * - `md`–`lg`: mark · open/closed · Staff login · ☰.
+ * - below `md`: mark · ☰ — the badge and Staff login move into the drawer, so a 320 px phone never squeezes three
+ *   controls beside a long restaurant name. The name wraps to two lines before it would push the ☰ off-screen.
  */
 function SiteHeader({ view }: { view: SiteView }) {
   const { site } = view;
   const links = siteNavLinks(site.sections);
+  const inline = primaryNavLinks(links);
+  const signIn = staffSignInHref();
   return (
     <header className="glass-1 sticky top-0 z-header border-b print:static">
-      <div className="mx-auto w-full max-w-public px-4 md:px-6">
-        <div className="flex flex-wrap items-center gap-x-3 py-3 md:h-header md:flex-nowrap md:py-0">
-          <a href={view.homeHref} className="flex min-w-0 items-center gap-3">
-            <SiteImage src={site.identity.logoUrl} alt="" fallbackIcon={Store} displayWidth={40} className="h-10 w-10 shrink-0 rounded-xl" />
-            <span className="truncate font-display text-heading">{site.restaurant.name}</span>
-          </a>
+      <div className="mx-auto flex h-header w-full max-w-public items-center gap-3 px-4 md:px-6">
+        <a href={view.homeHref} className="flex min-w-0 flex-1 items-center gap-3 xl:max-w-xs xl:flex-none">
+          <BrandMark name={site.restaurant.name} logoUrl={site.identity.logoUrl} />
+          <span className="line-clamp-2 min-w-0 break-words font-display text-subheading leading-tight md:text-heading">{site.restaurant.name}</span>
+        </a>
 
-          <div className="ml-auto flex shrink-0 items-center gap-2 md:order-last md:gap-3">
-            <OpenNowBadge openNow={site.openNow} />
-            {/* The restaurant's own staff sign in here, on the apex host (one Clerk domain); after sign-in the console
-                shows only the restaurants that person is a member of. */}
-            <Link
-              href={staffSignInHref()}
-              prefetch={false}
-              className="inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border border-border-strong px-3 text-nav text-fg-primary transition-colors duration-fast ease-standard hover:bg-raised"
-            >
-              <LogIn aria-hidden="true" className="h-4 w-4" />
-              <span className="hidden sm:inline">Staff login</span>
-              <span className="sr-only sm:hidden">Staff login</span>
-            </Link>
-          </div>
+        {inline.length > 0 ? (
+          <nav aria-label={`${site.restaurant.name} sections`} className="hidden min-w-0 flex-1 justify-center xl:flex">
+            <ul className="flex list-none items-center gap-1 p-0">
+              {inline.map((link) => (
+                <li key={link.href}>
+                  <a
+                    href={link.href}
+                    className="relative inline-flex h-10 items-center whitespace-nowrap rounded-xl px-3 text-nav text-fg-secondary transition-colors duration-fast ease-standard after:absolute after:inset-x-3 after:bottom-1 after:h-0.5 after:origin-left after:scale-x-0 after:rounded-full after:bg-action-primary after:transition-transform after:duration-fast hover:text-fg-primary motion-safe:hover:after:scale-x-100"
+                  >
+                    {link.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ) : null}
 
-          {links.length > 0 ? (
-            <nav aria-label={`${site.restaurant.name} sections`} className="order-last w-full min-w-0 md:order-none md:ml-4 md:w-auto md:flex-1">
-              <ul className="-mx-1 flex list-none items-center gap-1 overflow-x-auto px-1 pt-2 md:p-0">
-                {links.map((link) => (
-                  <li key={link.href}>
-                    <a
-                      href={link.href}
-                      className="inline-flex h-10 items-center whitespace-nowrap rounded-xl px-3 text-nav text-fg-secondary transition-colors duration-fast ease-standard hover:bg-raised hover:text-fg-primary"
-                    >
-                      {link.label}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          ) : null}
+        <div className="hidden shrink-0 items-center gap-3 md:flex">
+          <OpenNowBadge openNow={site.openNow} />
+          {/* The restaurant's own staff sign in here, on the apex host (one Clerk domain); after sign-in the console
+              shows only the restaurants that person is a member of. */}
+          <Link
+            href={signIn}
+            prefetch={false}
+            className="group inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border border-border-strong px-3 text-nav text-fg-primary transition-[background-color,transform,box-shadow] duration-fast ease-standard hover:bg-raised motion-safe:hover:-translate-y-px motion-safe:hover:shadow-e2"
+          >
+            <LogIn aria-hidden="true" className="h-4 w-4 transition-transform duration-fast ease-standard motion-safe:group-hover:translate-x-0.5" />
+            Staff login
+          </Link>
         </div>
+
+        <SiteMenu
+          className="shrink-0"
+          restaurantName={site.restaurant.name}
+          links={links}
+          staffSignInHref={signIn}
+          status={<OpenNowBadge openNow={site.openNow} />}
+        />
       </div>
     </header>
   );

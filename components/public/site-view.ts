@@ -73,10 +73,26 @@ export const SECTION_ANCHOR: Readonly<Record<string, string>> = {
 /** Sections worth offering in the header navigation, in the restaurant's own order and wording. */
 const NAVIGABLE = new Set(["ABOUT", "FEATURED_MENU", "CATEGORIES", "POPULAR_ITEMS", "INFO", "HOURS", "GALLERY", "LOCATION", "CONTACT"]);
 
-export function siteNavLinks(sections: readonly ResolvedSection[]): Array<{ href: string; label: string }> {
+export type SiteNavLink = { key: string; href: string; label: string };
+
+export function siteNavLinks(sections: readonly ResolvedSection[]): SiteNavLink[] {
   return sections
     .filter((section) => NAVIGABLE.has(section.key))
-    .map((section) => ({ href: `#${SECTION_ANCHOR[section.key]}`, label: section.headline }));
+    .map((section) => ({ key: section.key, href: `#${SECTION_ANCHOR[section.key]}`, label: section.headline }));
+}
+
+/** The sections a guest reaches for most, shown inline in a desktop header; the ☰ drawer always lists every one. */
+const PRIMARY_NAV = ["CATEGORIES", "FEATURED_MENU", "ABOUT", "GALLERY", "HOURS", "CONTACT"];
+
+export function primaryNavLinks(links: readonly SiteNavLink[], max = 5): SiteNavLink[] {
+  return PRIMARY_NAV.flatMap((key) => links.filter((link) => link.key === key)).slice(0, max);
+}
+
+/** Up to two initials for a restaurant without a logo, e.g. "Akshayapatra-Devarapalli" → "AD". */
+export function monogram(name: string): string {
+  const words = name.split(/[\s\-–·&]+/).filter((word) => /[\p{L}\p{N}]/u.test(word));
+  const letters = words.slice(0, 2).map((word) => Array.from(word.replace(/^[^\p{L}\p{N}]+/u, ""))[0] ?? "");
+  return letters.join("").toLocaleUpperCase() || "·";
 }
 
 /** The first in-page menu anchor that actually exists, for CTAs that should lead to the food. */
