@@ -12,6 +12,7 @@ import {
   setOrderPriority,
   updateOrderStatus,
 } from "@/lib/services/orders";
+import { kitchenDispatchOfOrder } from "@/lib/services/printing";
 import { parseInput } from "@/lib/validation/core";
 import {
   createOrderSchema,
@@ -62,7 +63,11 @@ export const createStaffOrderAction = action(async (input: CreateOrderInput) => 
   const data = parseInput(createOrderSchema, input);
   if (data.customer) requirePermission(ctx, "customer:create");
   if (data.sendToKitchen) requirePermission(ctx, "order:accept");
-  return { order: await createOrder(ctx, data) };
+  const order = await createOrder(ctx, data);
+  // Automatic KOT: the tickets and their print jobs were committed with the order. Report what actually happened to
+  // each one (queued / agent offline / no printer) — never an assumed "printed" (BR-PRINT-01).
+  const kitchen = data.sendToKitchen ? await kitchenDispatchOfOrder(ctx, order.id) : null;
+  return { order, kitchen };
 });
 
 /** LD-ORD-01 (S1-P12-T006) — `order:read`. The board's refresh after a mutation; the 10 s poll uses RH-ORD-01. */

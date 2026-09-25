@@ -1,5 +1,5 @@
 import "server-only";
-import type { MembershipStatus, PlatformRole, Prisma, TenantRole, UserStatus } from "@prisma/client";
+import type { MembershipStatus, PlatformRole, Prisma, TenantRole, ThemePreference, UserStatus } from "@prisma/client";
 import { db } from "@/lib/db/prisma";
 import { mapErrors } from "./errors";
 
@@ -100,6 +100,19 @@ export async function touchLastSignIn(userId: string, now: Date, minIntervalMs =
       data: { lastSignInAt: now },
     }),
   );
+}
+
+/**
+ * The person's console colour scheme (ADR-016). A display preference of the signed-in user's own row — not a
+ * security-relevant change — so, like `lastSignInAt`, it is not audited.
+ */
+export async function findThemePreference(userId: string): Promise<ThemePreference | null> {
+  const row = await mapErrors("User", () => db.user.findUnique({ where: { id: userId }, select: { themePreference: true } }));
+  return row?.themePreference ?? null;
+}
+
+export async function saveThemePreference(userId: string, themePreference: ThemePreference): Promise<void> {
+  await mapErrors("User", () => db.user.update({ where: { id: userId }, data: { themePreference }, select: { id: true } }));
 }
 
 export type ClerkProfile = { clerkUserId: string; verifiedPrimaryEmail: string | null; fullName: string | null };

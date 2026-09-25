@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CircleCheck, Trash2 } from "lucide-react";
+import { CircleCheck, Clock, Printer, Trash2, TriangleAlert, type LucideIcon } from "lucide-react";
 import type { OrderType } from "@prisma/client";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { Checkbox, SearchField, Select, TextArea, TextField } from "@/components
 import { useToast } from "@/components/ui/toast";
 import { EmptyState } from "@/components/states/empty-state";
 import type { OrderEntryCatalogue, OrderQuote } from "@/lib/services/orders";
+import type { KitchenDispatch, KotDispatchState } from "@/lib/services/printing";
 import { formatMoney, localeForCountry } from "@/lib/ui/format";
 import { DOMAIN_ICONS, MENU_ICONS, isMenuIconKey } from "@/lib/ui/icons";
 import { useConsoleSession } from "@/lib/ui/session-context";
@@ -36,7 +37,28 @@ type CartLine = ChosenLine & { key: string };
 
 const ORDER_TYPES: OrderType[] = ["DINE_IN", "TAKEAWAY", "DELIVERY"];
 
-type Saved = { id: string; orderNumber: string; status: string; totalAmount: string | null; currencyCode: string };
+type Saved = { id: string; orderNumber: string; status: string; totalAmount: string | null; currencyCode: string; kitchen: KitchenDispatch | null };
+
+/**
+ * What the person who placed the order is told about each automatic KOT (never "printed" unless the agent said so).
+ * The order is placed in every case — a printer problem is shown next to it, not instead of it.
+ */
+const DISPATCH_COPY: Record<KotDispatchState, { icon: LucideIcon; tone: string; text: (printer: string | null) => string }> = {
+  QUEUED: { icon: Printer, tone: "text-status-success", text: (p) => `Sent to ${p ?? "the kitchen printer"}` },
+  PRINTED: { icon: CircleCheck, tone: "text-status-success", text: (p) => `Printed on ${p ?? "the kitchen printer"}` },
+  AGENT_OFFLINE: { icon: Clock, tone: "text-status-warning", text: (p) => `Queued — the print agent for ${p ?? "the printer"} is offline; it prints when the agent reconnects` },
+  FAILED: { icon: TriangleAlert, tone: "text-status-danger", text: () => "Print failed — retry it from Printing" },
+  NO_PRINTER: { icon: TriangleAlert, tone: "text-status-warning", text: () => "No printer for this station — on the kitchen screen only" },
+  AUTO_PRINT_OFF: { icon: Clock, tone: "text-fg-secondary", text: () => "Automatic KOT printing is off — on the kitchen screen" },
+};
+
+function dispatchHeadline(kitchen: KitchenDispatch | null): string {
+  if (!kitchen || kitchen.tickets.length === 0) return "";
+  const states = kitchen.tickets.map((t) => t.state);
+  if (states.every((s) => s === "QUEUED" || s === "PRINTED")) return " KOT sent to the kitchen.";
+  if (states.some((s) => s === "AGENT_OFFLINE")) return " KOT queued — the print agent is offline.";
+  return " KOT is on the kitchen screen.";
+}
 
 export function OrderEntry({
   catalogue,
@@ -193,10 +215,10 @@ export function OrderEntry({
       return;
     }
 
-    const order = result.data.order;
-    setSaved({ id: order.id, orderNumber: order.orderNumber, status: order.status, totalAmount: order.totalAmount, currencyCode: order.currencyCode });
+    const { order, kitchen } = result.data;
+    setSaved({ id: order.id, orderNumber: order.orderNumber, status: order.status, totalAmount: order.totalAmount, currencyCode: order.currencyCode, kitchen });
     setPanelOpen(false);
-    toast.success(`Order ${order.orderNumber} saved.`);
+    toast.success(order.status === "ACCEPTED" ? `Order ${order.orderNumber} placed.${dispatchHeadline(kitchen)}` : `Order ${order.orderNumber} saved.`);
     // The key has done its job; the next order is a new one.
     idempotency.reset();
     router.refresh();
@@ -208,13 +230,29 @@ export function OrderEntry({
         <div className="flex items-center gap-3">
           <Icon icon={CircleCheck} size={32} className="text-status-success" />
           <div>
-            <h2 className="text-heading text-fg-primary">Order {saved.orderNumber} saved</h2>
+            <h2 className="text-heading text-fg-primary">Order {saved.orderNumber} {saved.status === "ACCEPTED" ? "placed" : "saved"}</h2>
             <p className="text-body text-fg-secondary">
               {saved.status === "ACCEPTED" ? "Sent to the kitchen." : "Waiting to be accepted."}
               {saved.totalAmount ? ` Total ${formatMoney(saved.totalAmount, saved.currencyCode, locale)}.` : ""}
             </p>
           </div>
         </div>
+        {saved.kitchen && saved.kitchen.tickets.length > 0 && (
+          <ul aria-label="Kitchen tickets" className="flex flex-col gap-2 rounded-xl border border-border-subtle p-3">
+            {saved.kitchen.tickets.map((ticket) => {
+              const copy = DISPATCH_COPY[ticket.state];
+              return (
+                <li key={ticket.kotNumber} className="flex items-start gap-3">
+                  <Icon icon={copy.icon} size={20} className={`mt-0.5 shrink-0 ${copy.tone}`} />
+                  <p className="text-body text-fg-primary">
+                    <span className="text-label">KOT {ticket.kotNumber}</span>
+                    {ticket.sectionName ? ` · ${ticket.sectionName}` : ""} — {copy.text(ticket.printerName)}
+                  </p>
+                </li>
+              );
+            })}
+          </ul>
+        )}
         <div className="flex flex-wrap gap-3">
           <Link
             href={`/restaurant/orders/${saved.id}`}
@@ -344,7 +382,7 @@ export function OrderEntry({
         <Checkbox size="touch" label="Mark urgent for the kitchen" checked={urgent} onChange={(event) => setUrgent(event.target.checked)} />
       )}
       {canSendToKitchen && (
-        <Checkbox size="touch" label="Send to the kitchen now" checked={sendToKitchen} onChange={(event) => setSendToKitchen(event.target.checked)} />
+        <Checkbox size="touch" label="Send the KOT to the kitchen now" checked={sendToKitchen} onChange={(event) => setSendToKitchen(event.target.checked)} />
       )}
 
       {formError && <Alert tone="danger">{formError}</Alert>}
@@ -354,11 +392,11 @@ export function OrderEntry({
         size="touch"
         className="w-full"
         loading={submitting}
-        loadingLabel="Saving…"
+        loadingLabel={sendToKitchen && canSendToKitchen ? "Placing order…" : "Saving…"}
         disabled={lines.length === 0}
         onClick={() => void submit()}
       >
-        {sendToKitchen && canSendToKitchen ? "Send to kitchen" : "Save order"}
+        {sendToKitchen && canSendToKitchen ? "Place order" : "Save order"}
       </Button>
     </div>
   );

@@ -6,6 +6,7 @@ import { Icon } from "@/components/ui/icon";
 import { Menu, type MenuItem } from "@/components/ui/menu";
 import { cn } from "@/lib/ui/cn";
 import { useSignOut } from "./sign-out-button";
+import { ThemeToggle } from "./theme-toggle";
 
 /**
  * User menu (S1-P08-T008, frontend.md §3.1/§3.2): who is signed in, Clerk's account settings, restaurant switching when
@@ -45,7 +46,11 @@ export function UserMenu({
     { label: pending ? "Signing out…" : "Sign out", icon: LogOut, onSelect: () => void signOut(), disabled: pending },
   ];
 
+  // The theme control sits beside the account menu, so every console header (tenant, kitchen, platform) gets exactly
+  // one, from one place (ADR-016).
   return (
+    <>
+    <ThemeToggle />
     <Menu
       items={items}
       header={
@@ -74,5 +79,6 @@ export function UserMenu({
         </button>
       )}
     />
+    </>
   );
 }

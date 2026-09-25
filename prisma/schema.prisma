@@ -41,6 +41,15 @@ enum PlatformRole {
   @@map("platform_role")
 }
 
+/// Console colour scheme chosen by a person (RASOIOS-ADR-016). Never a restaurant website theme.
+enum ThemePreference {
+  LIGHT
+  DARK
+  SYSTEM
+
+  @@map("theme_preference")
+}
+
 enum TenantRole {
   TENANT_ADMIN
   MANAGER
@@ -183,6 +192,16 @@ enum PrintAgentStatus {
   @@map("print_agent_status")
 }
 
+/// A console-requested LAN printer scan (RASOIOS-ADR-015): REQUESTED → RUNNING (agent picked it up) → COMPLETED/FAILED.
+enum PrinterDiscoveryStatus {
+  REQUESTED
+  RUNNING
+  COMPLETED
+  FAILED
+
+  @@map("printer_discovery_status")
+}
+
 enum PrintJobType {
   KOT
   RECEIPT
@@ -312,6 +331,7 @@ model Tenant {
   businessDayCloses BusinessDayClose[]
   printers          Printer[]
   printAgents       PrintAgent[]
+  printerDiscoveries PrinterDiscovery[]
   printJobs         PrintJob[]
   auditLogs         AuditLog[]
   socialPosts       SocialPost[]
@@ -457,6 +477,8 @@ model User {
   platformRole PlatformRole @default(NONE) @map("platform_role")
   status       UserStatus   @default(ACTIVE)
   lastSignInAt DateTime?    @map("last_sign_in_at") @db.Timestamptz(6)
+  /// Console light/dark choice (ADR-016); DARK keeps the ADR-013 default.
+  themePreference ThemePreference @default(DARK) @map("theme_preference")
   createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -475,6 +497,7 @@ model User {
   createdPrintAgents     PrintAgent[]       @relation("PrintAgentCreatedBy")
   revokedPrintAgents     PrintAgent[]       @relation("PrintAgentRevokedBy")
   requestedPrintJobs     PrintJob[]         @relation("PrintJobRequestedBy")
+  printerDiscoveries     PrinterDiscovery[] @relation("PrinterDiscoveryRequestedBy")
   auditLogs              AuditLog[]         @relation("AuditActor")
   markedSocialPosts      SocialPost[]       @relation("SocialPostMarkedBy")
   createdSocialPosts     SocialPost[]       @relation("SocialPostCreatedBy")
@@ -988,15 +1011,43 @@ model PrintAgent {
   createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  createdBy User       @relation("PrintAgentCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
-  revokedBy User?      @relation("PrintAgentRevokedBy", fields: [revokedByUserId], references: [id], onDelete: Restrict)
-  printers  Printer[]
-  printJobs PrintJob[]
+  tenant      Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  createdBy   User               @relation("PrintAgentCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  revokedBy   User?              @relation("PrintAgentRevokedBy", fields: [revokedByUserId], references: [id], onDelete: Restrict)
+  printers    Printer[]
+  printJobs   PrintJob[]
+  discoveries PrinterDiscovery[]
 
   @@unique([tenantId, id])
   @@index([tenantId, status])
   @@map("print_agents")
+}
+
+// ───────────────────────── E29 PRINTER_DISCOVERY (RASOIOS-ADR-015) ─────────────────────────
+
+/// One LAN scan an admin asked an agent to run. `results` holds only what the agent observed (private IPv4, port,
+/// advertised names); nothing becomes a PRINTER until a person adds it. Rows are tenant-owned like every agent row.
+model PrinterDiscovery {
+  id                String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String                 @map("tenant_id") @db.Uuid
+  printAgentId      String                 @map("print_agent_id") @db.Uuid
+  status            PrinterDiscoveryStatus @default(REQUESTED)
+  results           Json?                  @db.JsonB
+  errorCode         String?                @map("error_code") @db.VarChar(40)
+  requestedByUserId String                 @map("requested_by_user_id") @db.Uuid
+  requestedAt       DateTime               @default(now()) @map("requested_at") @db.Timestamptz(6)
+  startedAt         DateTime?              @map("started_at") @db.Timestamptz(6)
+  completedAt       DateTime?              @map("completed_at") @db.Timestamptz(6)
+  createdAt         DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  printAgent  PrintAgent @relation(fields: [tenantId, printAgentId], references: [tenantId, id], onDelete: Restrict)
+  requestedBy User       @relation("PrinterDiscoveryRequestedBy", fields: [requestedByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, printAgentId, status])
+  @@map("printer_discoveries")
 }
 
 // ───────────────────────── E23 PRINT_JOB ─────────────────────────
@@ -1129,3 +1180,4 @@ model RateLimitBucket {
   @@index([expiresAt])
   @@map("rate_limit_buckets")
 }
+

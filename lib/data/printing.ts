@@ -394,6 +394,52 @@ export async function createPrintJob(client: Tx, ctx: TenantContext, job: NewPri
 }
 
 /** How many reprints of a ticket already exist, so the next dedupe key is `KOT:{id}:reprint:{n}` (api.md SA-KOT-02). */
+export type KotDispatchRow = {
+  kotTicketId: string;
+  kotNumber: string;
+  sectionName: string | null;
+  job: { status: PrintJobStatus; printerName: string; agentStatus: PrintAgentStatus | null; agentLastSeenAt: string | null } | null;
+};
+
+/**
+ * Where each kitchen ticket of an order went (round `round`): its original, non-reprint print job and the printer's
+ * agent liveness. Tenant-scoped through the order and every relation. Used to tell the person who placed the order
+ * what actually happened to the KOT, instead of assuming it printed.
+ */
+export async function kotDispatchOfOrder(client: Tx, ctx: TenantContext, orderId: string, round: number): Promise<KotDispatchRow[]> {
+  const tickets = await client.kotTicket.findMany({
+    where: tenantScope(ctx, { orderId, roundNumber: round }),
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    select: {
+      id: true,
+      kotNumber: true,
+      kitchenSection: { select: { name: true } },
+      printJobs: {
+        where: { tenantId: ctx.tenantId, jobType: PrintJobType.KOT, isReprint: false },
+        orderBy: { createdAt: "asc" },
+        take: 1,
+        select: { status: true, printer: { select: { name: true, printAgent: { select: { status: true, lastSeenAt: true } } } } },
+      },
+    },
+  });
+  return tickets.map((ticket) => {
+    const job = ticket.printJobs[0];
+    return {
+      kotTicketId: ticket.id,
+      kotNumber: ticket.kotNumber,
+      sectionName: ticket.kitchenSection?.name ?? null,
+      job: job
+        ? {
+            status: job.status,
+            printerName: job.printer.name,
+            agentStatus: job.printer.printAgent?.status ?? null,
+            agentLastSeenAt: nullableInstantDto(job.printer.printAgent?.lastSeenAt ?? null),
+          }
+        : null,
+    };
+  });
+}
+
 export async function countKotReprints(client: Tx, ctx: TenantContext, kotTicketId: string): Promise<number> {
   return client.printJob.count({ where: tenantScope(ctx, { kotTicketId, jobType: PrintJobType.KOT, isReprint: true }) });
 }

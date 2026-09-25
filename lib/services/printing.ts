@@ -25,6 +25,7 @@ import {
   insertPrinter,
   insertPrintAgentPairing,
   kitchenSectionExists,
+  kotDispatchOfOrder,
   listActivePrinters as listActivePrintersData,
   listPrintAgents,
   listPrinters as listPrintersData,
@@ -667,5 +668,41 @@ export async function getAgentConfig(ctx: AgentContext): Promise<{ agentId: stri
     printers: await agentPrinterConfig(ctx),
     pollIntervalMs: POLL_INTERVAL_MS,
     heartbeatIntervalMs: HEARTBEAT_INTERVAL_MS,
+  };
+}
+
+// ─── Kitchen dispatch after an order is placed (automatic KOT) ───
+
+/**
+ * What happened to one kitchen ticket's automatic print, as far as the server knows at that moment:
+ * - QUEUED: a print job waits for an agent that is online (it normally prints within seconds).
+ * - PRINTED: the agent already confirmed it (only ever set by the agent's acknowledgement, BR-PRINT-01).
+ * - AGENT_OFFLINE: queued, but the printer's agent has not been seen for 90 s — it prints when the agent reconnects.
+ * - FAILED: the job already failed permanently (retry from the printing console).
+ * - NO_PRINTER: no active printer serves this kitchen section; the ticket is on the kitchen screen only.
+ * - AUTO_PRINT_OFF: the restaurant turned automatic KOT printing off.
+ * Never "printed" on assumption: the order itself succeeded either way (a printer never blocks an order).
+ */
+export type KotDispatchState = "QUEUED" | "PRINTED" | "AGENT_OFFLINE" | "FAILED" | "NO_PRINTER" | "AUTO_PRINT_OFF";
+export type KitchenDispatch = {
+  tickets: Array<{ kotNumber: string; sectionName: string | null; printerName: string | null; state: KotDispatchState }>;
+};
+
+export async function kitchenDispatchOfOrder(ctx: TenantContext, orderId: string, round = 1): Promise<KitchenDispatch> {
+  const at = now();
+  const { rows, autoPrintKot } = await withTx(ctx, async (tx) => ({
+    rows: await kotDispatchOfOrder(tx, ctx, orderId, round),
+    autoPrintKot: (await printingProfile(tx, ctx)).autoPrintKot,
+  }));
+  return {
+    tickets: rows.map((row) => {
+      let state: KotDispatchState;
+      if (!row.job) state = autoPrintKot ? "NO_PRINTER" : "AUTO_PRINT_OFF";
+      else if (row.job.status === PrintJobStatus.PRINTED) state = "PRINTED";
+      else if (row.job.status === PrintJobStatus.FAILED) state = "FAILED";
+      else if (!row.job.agentStatus || !isAgentOnline({ status: row.job.agentStatus, lastSeenAt: row.job.agentLastSeenAt }, at)) state = "AGENT_OFFLINE";
+      else state = "QUEUED";
+      return { kotNumber: row.kotNumber, sectionName: row.sectionName, printerName: row.job?.printerName ?? null, state };
+    }),
   };
 }

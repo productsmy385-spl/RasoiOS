@@ -13,13 +13,14 @@ const FORBIDDEN = /plan|tier|subscription|billing|feature_?flag/i;
 const { models, enums } = Prisma.dmmf.datamodel;
 
 describe("TC-DB-003 schema names", () => {
-  // 28 since migration 0002 added WEBSITE_SECTION (ADR-013 §6). MEDIA_ASSET is Future Scope: Q-009 answered A.
-  it("has the 28 unconditional entities", () => {
+  // 28 since migration 0002 added WEBSITE_SECTION (ADR-013 §6); 29 since 0003 added PRINTER_DISCOVERY (ADR-015).
+  // MEDIA_ASSET is Future Scope: Q-009 answered A.
+  it("has the 29 unconditional entities", () => {
     expect(models.map((m) => m.name).sort()).toEqual(
       [
         "AuditLog", "BusinessDayClose", "Customer", "DailyMenu", "DailyMenuItem", "KitchenSection", "KotItem",
         "KotTicket", "MenuCategory", "MenuItem", "MenuItemAddon", "MenuItemVariant", "Order", "OrderItem",
-        "OrderItemAddon", "PrintAgent", "PrintJob", "Printer", "RateLimitBucket", "Restaurant", "RestaurantHours",
+        "OrderItemAddon", "PrintAgent", "PrintJob", "Printer", "PrinterDiscovery", "RateLimitBucket", "Restaurant", "RestaurantHours",
         "SocialPost", "Tenant", "TenantCounter", "Transaction", "User", "UserTenant", "WebsiteSection",
       ].sort(),
     );

@@ -3,7 +3,7 @@
 import * as React from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import type { LucideIcon } from "lucide-react";
+import { Check, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/ui/cn";
 import { Icon } from "./icon";
 
@@ -20,6 +20,8 @@ export type MenuItem = {
   href?: string;
   tone?: "default" | "danger";
   disabled?: boolean;
+  /** Set for a choice among options (e.g. Light / Dark / System): rendered as `menuitemradio` with a check mark. */
+  checked?: boolean;
 };
 
 export type MenuTriggerProps = {
@@ -45,7 +47,7 @@ export type MenuProps = {
 type Position = { top?: number; bottom?: number; left?: number; right?: number };
 
 function enabledItems(menu: HTMLElement | null): HTMLElement[] {
-  return Array.from(menu?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([aria-disabled="true"])') ?? []);
+  return Array.from(menu?.querySelectorAll<HTMLElement>('[role^="menuitem"]:not([aria-disabled="true"])') ?? []);
 }
 
 export function Menu({ items, trigger, header, align = "end" }: MenuProps) {
@@ -161,7 +163,8 @@ export function Menu({ items, trigger, header, align = "end" }: MenuProps) {
                 <button
                   key={item.label}
                   type="button"
-                  role="menuitem"
+                  role={item.checked === undefined ? "menuitem" : "menuitemradio"}
+                  aria-checked={item.checked}
                   tabIndex={-1}
                   aria-disabled={item.disabled || undefined}
                   className={itemClass(item)}
@@ -173,6 +176,7 @@ export function Menu({ items, trigger, header, align = "end" }: MenuProps) {
                 >
                   {item.icon && <Icon icon={item.icon} size={18} />}
                   {item.label}
+                  {item.checked && <Icon icon={Check} size={16} className="ml-auto text-fg-accent" />}
                 </button>
               ),
             )}
