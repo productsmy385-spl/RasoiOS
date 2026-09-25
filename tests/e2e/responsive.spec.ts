@@ -14,7 +14,10 @@ import { signInWithEmail } from "./fixtures/auth";
  * membership) is set; admin pages when E2E_ADMIN_EMAIL (a SUPER_ADMIN) is set.
  */
 const WIDTHS = [320, 360, 375, 390, 430, 768, 1024, 1440] as const;
-const PUBLIC_ROUTES = ["/", "/sign-in", "/r/spice-route", "/r/spice-route/daily"];
+// The seeded development restaurant by default; set E2E_PUBLIC_SLUG to audit a real one on a deployed site
+// (e.g. akshayapatra-devarapalli), where spice-route does not exist.
+const PUBLIC_SLUG = process.env.E2E_PUBLIC_SLUG ?? "spice-route";
+const PUBLIC_ROUTES = ["/", "/sign-in", `/r/${PUBLIC_SLUG}`, `/r/${PUBLIC_SLUG}/daily`];
 const CONSOLE_ROUTES = [
   "/restaurant/dashboard",
   "/restaurant/orders",
