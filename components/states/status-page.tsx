@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import { IconTile } from "@/components/ui/icon-tile";
 import { SignOutButton } from "@/components/layout/sign-out-button";
+import { FoodBackdrop } from "@/components/layout/food-backdrop";
 
 /**
  * Account status page (design.md §9): the full-screen message shown when there is no restaurant to render —
@@ -22,7 +23,8 @@ export function StatusPage({
   showSignOut?: boolean;
 }) {
   return (
-    <main className="page-wash flex min-h-screen items-center justify-center bg-canvas p-6">
+    <main className="page-wash isolate flex min-h-screen items-center justify-center bg-canvas p-6">
+      <FoodBackdrop />
       <div className="glass-2 flex w-full max-w-auth flex-col items-center gap-4 rounded-2xl p-6 text-center">
         <IconTile icon={icon} size="lg" tone="primary" />
         <h1 className="text-display-m text-fg-primary">{title}</h1>

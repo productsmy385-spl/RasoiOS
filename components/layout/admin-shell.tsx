@@ -9,6 +9,7 @@ import { cn } from "@/lib/ui/cn";
 import { activeAdminItem, ADMIN_NAV_ITEMS } from "@/lib/ui/navigation";
 import { BrandMark, SkipLink } from "./brand";
 import { UserMenu } from "./user-menu";
+import { FoodBackdrop } from "./food-backdrop";
 
 /**
  * Platform console shell (ADR-013 §3, frontend.md §5.2): the same header-navigation shell as the tenant console —
@@ -59,7 +60,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   return (
     <Toaster>
       <SkipLink />
-      <div className="page-wash flex min-h-screen flex-col bg-canvas text-fg-primary">
+      <div className="page-wash isolate flex min-h-screen flex-col bg-canvas text-fg-primary">
+        <FoodBackdrop />
         <AdminHeader />
         <main id="main-content" tabIndex={-1} className="mx-auto w-full min-w-0 max-w-admin flex-1 px-4 py-6 focus:outline-none sm:px-6 lg:px-8 lg:py-8">
           {children}

@@ -14,6 +14,7 @@ import { MobileNavPanel } from "./mobile-nav-panel";
 import { NotificationsMenu, type OperationalIndicator } from "./notifications";
 import { RestaurantMark } from "./restaurant-mark";
 import { UserMenu } from "./user-menu";
+import { FoodBackdrop } from "./food-backdrop";
 
 /**
  * Console shell (ADR-013 §3, frontend.md §2–3, design.md §4.2/§6). Brand v2 has **no desktop sidebar**:
@@ -43,7 +44,8 @@ export function AppShell({ children, indicators = [] }: { children: React.ReactN
   return (
     <>
       <SkipLink />
-      <div className="page-wash flex min-h-screen flex-col bg-canvas text-fg-primary">
+      <div className="page-wash isolate flex min-h-screen flex-col bg-canvas text-fg-primary">
+        <FoodBackdrop />
         <header className="glass-1 sticky top-0 z-header border-b print:hidden">
           <div className="mx-auto flex h-header w-full max-w-console items-center gap-3 px-4 sm:px-6 lg:px-8">
             <IconButton

@@ -5,6 +5,7 @@ import { Icon } from "@/components/ui/icon";
 import { IconTile } from "@/components/ui/icon-tile";
 import { BrandMark } from "@/components/layout/brand";
 import type { DomainHue } from "@/lib/ui/icons";
+import { FoodBackdrop } from "@/components/layout/food-backdrop";
 
 export const metadata: Metadata = {
   title: "RASOIOS — Restaurant Operations",
@@ -46,7 +47,8 @@ const DETAILS: Array<{ icon: typeof Receipt; hue: DomainHue; text: string }> = [
 
 export default function Home() {
   return (
-    <div className="page-wash flex min-h-screen flex-col bg-canvas text-fg-primary">
+    <div className="page-wash isolate flex min-h-screen flex-col bg-canvas text-fg-primary">
+      <FoodBackdrop />
       <header className="glass-1 sticky top-0 z-header border-b">
         <div className="mx-auto flex h-header w-full max-w-public items-center justify-between gap-3 px-4 sm:px-6 lg:px-10">
           <BrandMark href="/" />
