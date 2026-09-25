@@ -17,6 +17,14 @@ export type RouteKind =
 const PUBLIC_EXACT = new Set(["/", "/offline", "/api/health", "/api/ready", "/manifest.json", "/sw.js", "/favicon.ico", "/robots.txt", "/sitemap.xml"]);
 const PUBLIC_PREFIXES = ["/r/", "/sign-in", "/sign-up", "/icons/"];
 
+/**
+ * Paths that sit under a public prefix but are not public. `/sign-in/landing` reads the caller's platform role and
+ * memberships and sends each user somewhere different, so it is an ordinary signed-in page that happens to live under
+ * `/sign-in`. Classifying it `public` gave its per-user redirect no `no-store`, so a browser could replay the redirect
+ * it received while signed out — back to `/sign-in` — and the sign-in form appeared to hang until a manual reload.
+ */
+const PRIVATE_EXACT = new Set(["/sign-in/landing"]);
+
 function matchesPrefix(pathname: string, prefix: string): boolean {
   // "/sign-in" matches "/sign-in" and "/sign-in/…" but not "/sign-inx".
   if (prefix.endsWith("/")) return pathname.startsWith(prefix);
@@ -26,6 +34,7 @@ function matchesPrefix(pathname: string, prefix: string): boolean {
 export function classifyRoute(pathname: string): RouteKind {
   if (pathname === "/api/webhooks/clerk") return "webhook";
   if (pathname === "/api/v1/print-agent" || pathname.startsWith("/api/v1/print-agent/")) return "agent";
+  if (PRIVATE_EXACT.has(pathname)) return "page";
   if (PUBLIC_EXACT.has(pathname) || PUBLIC_PREFIXES.some((p) => matchesPrefix(pathname, p))) return "public";
   if (pathname === "/api" || pathname.startsWith("/api/")) return "api";
   return "page";

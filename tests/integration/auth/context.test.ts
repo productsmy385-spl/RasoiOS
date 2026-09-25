@@ -2,6 +2,7 @@ import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { getTenantResolution } from "@/lib/auth/context";
 import { requirePlatform, requirePlatformPage, requireTenant, requireTenantPage } from "@/lib/auth/guards";
 import { switchActiveTenantAction } from "@/app/account/select-tenant/actions";
+import SignInLanding from "@/app/sign-in/landing/page";
 import { testDb } from "../setup/db";
 import {
   activeMembershipCookie,
@@ -145,5 +146,43 @@ describe("platform and tenant permissions never mix", () => {
     expect(await invokeLoader(requireTenantPage, "order:read")).toEqual({ redirect: "/sign-in" });
     asUninvited();
     expect(await invokeLoader(requireTenantPage, "order:read")).toEqual({ redirect: "/account/no-access?reason=NO_ACCOUNT" });
+  });
+});
+
+/**
+ * The post-sign-in landing (S1-P03-T005). It must reach the page the role actually starts on in a single hop: when it
+ * handed off to `/restaurant` to decide, every sign-in paid for an extra render before anything was drawn.
+ */
+describe("post-sign-in landing", () => {
+  it("sends each role straight to its own page", async () => {
+    await asPlatformAdmin();
+    expect(await invokeLoader(SignInLanding)).toEqual({ redirect: "/admin" });
+
+    await asSeedUser("A", "MANAGER");
+    expect(await invokeLoader(SignInLanding)).toEqual({ redirect: "/restaurant/dashboard" });
+
+    await asSeedUser("A", "KITCHEN");
+    expect(await invokeLoader(SignInLanding)).toEqual({ redirect: "/restaurant/kitchen" });
+
+    await asSeedUser("A", "WAITER");
+    expect(await invokeLoader(SignInLanding)).toEqual({ redirect: "/restaurant/orders" });
+  });
+
+  it("sends a user who cannot open a console to the matching account page", async () => {
+    asAnonymous();
+    expect(await invokeLoader(SignInLanding)).toEqual({ redirect: "/sign-in" });
+
+    asUninvited();
+    expect(await invokeLoader(SignInLanding)).toEqual({ redirect: "/account/no-access?reason=NO_ACCOUNT" });
+
+    await asSeedUser("A", "MANAGER");
+    await db.tenant.update({ where: { id: tenantIdOf("A") }, data: { status: "SUSPENDED" } });
+    expect(await invokeLoader(SignInLanding)).toEqual({ redirect: "/account/suspended" });
+  });
+
+  it("never lands on a page that would only redirect again", async () => {
+    await asSeedUser("A", "MANAGER");
+    const landing = await invokeLoader(SignInLanding);
+    expect(landing).not.toEqual({ redirect: "/restaurant" });
   });
 });

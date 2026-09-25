@@ -124,7 +124,7 @@ export const getPlatformResolution = cache(async (): Promise<PlatformResolution>
  */
 export async function getConsoleSession(ctx: TenantContext): Promise<{
   user: { id: string; fullName: string | null; email: string };
-  activeTenant: { name: string; slug: string; role: string; timezone: string; currencyCode: string; countryCode: string };
+  activeTenant: { name: string; slug: string; role: string; timezone: string; currencyCode: string; countryCode: string; logoUrl: string | null };
   membershipCount: number;
   capabilities: string[];
 }> {
@@ -140,6 +140,7 @@ export async function getConsoleSession(ctx: TenantContext): Promise<{
       timezone: ctx.restaurant.timezone,
       currencyCode: ctx.restaurant.currencyCode,
       countryCode: active?.restaurant?.countryCode ?? "",
+      logoUrl: active?.restaurant?.logoUrl ?? null,
     },
     membershipCount: memberships.filter((m) => m.tenantStatus === "ACTIVE").length,
     capabilities: [...ctx.permissions],

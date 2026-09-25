@@ -10,9 +10,13 @@ import type { ConsoleSession } from "@/lib/ui/session-context";
 import { LiveClock } from "./live-clock";
 
 /**
- * Header context block (frontend.md §3.1/§3.2, ADR-013 §3): which restaurant this console is showing, the signed-in
- * role, and the restaurant's own wall-clock time — never the browser's. The switcher appears only when the user
- * actually belongs to more than one restaurant, so it can never offer a tenant the server would refuse.
+ * Header context block (frontend.md §3.1/§3.2, ADR-013 §3): the signed-in role and the restaurant's own wall-clock
+ * time — never the browser's. The switcher appears only when the user actually belongs to more than one restaurant,
+ * so it can never offer a tenant the server would refuse.
+ *
+ * Which restaurant this is belongs to the header mark on the left, which carries the restaurant's own logo and name
+ * (white-label). Naming it again here would say the same thing twice in one 64 px bar, so the switcher names the
+ * restaurant only where it is the thing being switched.
  */
 export function ContextBlock({ session, className }: { session: ConsoleSession; className?: string }) {
   const multiple = session.membershipCount > 1;
@@ -20,8 +24,8 @@ export function ContextBlock({ session, className }: { session: ConsoleSession; 
     <>
       <Icon icon={Store} size={18} className="text-fg-accent" />
       <span className="flex min-w-0 flex-col text-left">
-        <span className="truncate text-label text-fg-primary">{session.activeTenant.name}</span>
-        <span className="truncate text-caption text-fg-secondary">{roleLabel(session.activeTenant.role)}</span>
+        <span className="truncate text-label text-fg-primary">{roleLabel(session.activeTenant.role)}</span>
+        {multiple && <span className="truncate text-caption text-fg-secondary">Switch restaurant</span>}
       </span>
       {multiple && <Icon icon={ChevronsUpDown} size={16} className="shrink-0 text-fg-secondary" />}
     </>

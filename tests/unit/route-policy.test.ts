@@ -29,6 +29,25 @@ describe("classifyRoute", () => {
     expect(classifyRoute(pathname)).toBe(kind);
   });
 
+  // The post-sign-in landing answers differently for every user, so it is a page even though it lives under
+  // `/sign-in`. When it counted as public its per-user redirect carried no `no-store`, and a browser could replay
+  // the one it was given while signed out — straight back to `/sign-in`.
+  it("treats the post-sign-in landing as a signed-in page, not a public route", () => {
+    expect(classifyRoute("/sign-in/landing")).toBe("page");
+    expect(mustNotBeStored("/sign-in/landing")).toBe(true);
+    expect(gate("/sign-in/landing", "", true, rid)).toEqual({ action: "next" });
+    expect(gate("/sign-in/landing", "", false, rid)).toEqual({
+      action: "redirect",
+      location: "/sign-in?redirect_url=%2Fsign-in%2Flanding",
+    });
+  });
+
+  it("keeps the sign-in form itself public", () => {
+    expect(mustNotBeStored("/sign-in")).toBe(false);
+    // Clerk owns the rest of /sign-in/* (factor-one, sso-callback, …) and those pages are the same for everyone.
+    expect(classifyRoute("/sign-in/landings")).toBe("public");
+  });
+
   it("does not treat look-alike paths as public", () => {
     expect(classifyRoute("/sign-inx")).toBe("page");
     expect(classifyRoute("/r")).toBe("page");

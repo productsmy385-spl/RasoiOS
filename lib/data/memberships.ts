@@ -14,7 +14,7 @@ export type MembershipRow = {
   tenantName: string;
   tenantSlug: string;
   tenantStatus: TenantStatus;
-  restaurant: { id: string; name: string; timezone: string; currencyCode: string; countryCode: string } | null;
+  restaurant: { id: string; name: string; timezone: string; currencyCode: string; countryCode: string; logoUrl: string | null } | null;
 };
 
 export async function activeMembershipsOfUser(userId: string): Promise<MembershipRow[]> {
@@ -32,7 +32,8 @@ export async function activeMembershipsOfUser(userId: string): Promise<Membershi
             name: true,
             slug: true,
             status: true,
-            restaurant: { select: { id: true, name: true, timezone: true, currencyCode: true, countryCode: true } },
+            // `logoUrl` so the console can wear the restaurant's own brand rather than the platform's (ADR-013 §1).
+            restaurant: { select: { id: true, name: true, timezone: true, currencyCode: true, countryCode: true, logoUrl: true } },
           },
         },
       },

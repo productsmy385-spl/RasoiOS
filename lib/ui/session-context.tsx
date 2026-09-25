@@ -8,7 +8,7 @@ import { createContext, useContext } from "react";
 
 export type ConsoleSession = {
   user: { id: string; fullName: string | null; email: string };
-  activeTenant: { name: string; slug: string; role: string; timezone: string; currencyCode: string; countryCode: string };
+  activeTenant: { name: string; slug: string; role: string; timezone: string; currencyCode: string; countryCode: string; logoUrl: string | null };
   membershipCount: number;
   capabilities: string[];
 };

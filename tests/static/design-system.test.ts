@@ -167,6 +167,19 @@ describe("ADR-013 §3 no desktop sidebar", () => {
       expect(source, shell).not.toContain("<aside");
     }
   });
+
+  /**
+   * White-label: a restaurant's staff sign in to *their* console, so its header carries their logo and name. Only
+   * `/admin` is the platform's own console, so only that one wears the RASOIOS wordmark.
+   */
+  it("the tenant consoles wear the restaurant's brand and the platform console wears the platform's", () => {
+    for (const shell of ["components/layout/app-shell.tsx", "components/layout/focus-shell.tsx"]) {
+      const source = readFileSync(path.join(root, shell), "utf8");
+      expect(source, shell).toContain("<RestaurantMark");
+      expect(source, shell).not.toContain("<BrandMark");
+    }
+    expect(readFileSync(path.join(root, "components/layout/admin-shell.tsx"), "utf8")).toContain("<BrandMark");
+  });
 });
 
 describe("palette v2 is derived, not improvised", () => {

@@ -8,9 +8,10 @@ import { localeForCountry } from "@/lib/ui/format";
 import { isFocusRoute, roleHomePath, roleLabel } from "@/lib/ui/navigation";
 import { useConsoleSession } from "@/lib/ui/session-context";
 import type { ShellSlots } from "./app-shell";
-import { BrandMark, SkipLink } from "./brand";
+import { SkipLink } from "./brand";
 import { LiveClock } from "./live-clock";
 import { NotificationsMenu } from "./notifications";
+import { RestaurantMark } from "./restaurant-mark";
 import { UserMenu } from "./user-menu";
 
 /**
@@ -30,8 +31,7 @@ export function FocusShell({ children, indicators = [] }: { children: React.Reac
       <div className="flex min-h-screen flex-col bg-canvas text-fg-primary">
         <header className="sticky top-0 z-header border-b border-border-subtle bg-card print:hidden">
           <div className="flex h-14 items-center gap-3 px-4">
-            <BrandMark href="/restaurant" className="hidden md:inline-flex" />
-            {session && <p className="min-w-0 truncate text-label text-fg-primary md:border-l md:border-border-subtle md:pl-3">{session.activeTenant.name}</p>}
+            {session && <RestaurantMark href="/restaurant" name={session.activeTenant.name} logoUrl={session.activeTenant.logoUrl} className="min-w-0" />}
             <div className="ml-auto flex shrink-0 items-center gap-2">
               {session?.activeTenant.timezone && <LiveClock timezone={session.activeTenant.timezone} locale={localeForCountry(session.activeTenant.countryCode)} />}
               <NotificationsMenu indicators={indicators} />
