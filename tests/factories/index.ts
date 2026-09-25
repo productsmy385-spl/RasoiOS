@@ -310,6 +310,12 @@ export async function createFullTenant(db: Db, label: string) {
     },
   });
   const agent = await createPrintAgent(db, tenant.id, user.id);
+  // TC-DB-004 walks every composite foreign key and needs a row on each child side to push across the tenant
+  // boundary. Without this, `printer_discoveries(tenant_id, print_agent_id)` has nothing to test and the key goes
+  // unchecked — which is what that test reports rather than passing quietly.
+  const printerDiscovery = await db.printerDiscovery.create({
+    data: { tenantId: tenant.id, printAgentId: agent.id, requestedByUserId: user.id },
+  });
   const printer = await createPrinter(db, tenant.id, { printAgentId: agent.id, kitchenSectionId: section.id });
   const printJob = await db.printJob.create({
     data: {
@@ -366,5 +372,5 @@ export async function createFullTenant(db: Db, label: string) {
     },
   });
 
-  return { tenant, restaurant, user, membership, hours, section, category, menuItem, variant, addon, dailyMenu, copiedDailyMenu, dailyMenuItem, customer, order, orderItem, orderItemAddon, kot, kotItem, payment, refund, agent, printer, printJob, socialPost, dayClose, websiteSection, audit };
+  return { tenant, restaurant, user, membership, hours, section, category, menuItem, variant, addon, dailyMenu, copiedDailyMenu, dailyMenuItem, customer, order, orderItem, orderItemAddon, kot, kotItem, payment, refund, agent, printerDiscovery, printer, printJob, socialPost, dayClose, websiteSection, audit };
 }
