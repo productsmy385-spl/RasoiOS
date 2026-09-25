@@ -51,7 +51,24 @@ export const claimedJobSchema = z.object({
   attemptCount: z.number().int(),
 });
 export type ClaimedJob = z.infer<typeof claimedJobSchema>;
-const claimResponseSchema = z.object({ jobs: z.array(claimedJobSchema).max(10) });
+/** `discovery` is set when an admin asked this agent to scan its LAN for printers (RASOIOS-ADR-015). */
+const claimResponseSchema = z.object({
+  jobs: z.array(claimedJobSchema).max(10),
+  discovery: z.object({ discoveryId: z.string().uuid() }).nullable().optional(),
+});
+const discoveryReportResponseSchema = z.object({ discoveryId: z.string().uuid(), status: z.enum(["COMPLETED", "FAILED"]) });
+
+export type DiscoveredDevice = {
+  address: string;
+  port: number;
+  protocol: "RAW_9100" | "IPP";
+  rawPrinting: boolean;
+  name?: string;
+  manufacturer?: string;
+  model?: string;
+  sources: Array<"MDNS" | "PORT_PROBE">;
+};
+export type DiscoveryReport = { outcome: "COMPLETED" | "FAILED"; errorCode?: string; printers: DiscoveredDevice[] };
 const ackResponseSchema = z.object({ jobId: z.string().uuid(), status: z.string() });
 
 export type PairResponse = z.infer<typeof pairResponseSchema>;
@@ -62,7 +79,8 @@ export type AckBody = { claimToken: string; result: "PRINTED" | "FAILED"; errorC
 export interface AgentApiLike {
   config(): Promise<ConfigResponse>;
   heartbeat(body: HeartbeatBody): Promise<z.infer<typeof heartbeatResponseSchema>>;
-  claim(max: number): Promise<{ jobs: ClaimedJob[] }>;
+  claim(max: number): Promise<{ jobs: ClaimedJob[]; discovery?: { discoveryId: string } | null }>;
+  reportDiscovery?(discoveryId: string, report: DiscoveryReport): Promise<{ discoveryId: string; status: string }>;
   ack(jobId: string, body: AckBody): Promise<{ jobId: string; status: string }>;
 }
 
@@ -96,6 +114,11 @@ export class AgentApi implements AgentApiLike {
 
   claim(max: number) {
     return this.request("POST", "/api/v1/print-agent/jobs/claim", { max }, claimResponseSchema);
+  }
+
+  reportDiscovery(discoveryId: string, report: DiscoveryReport) {
+    if (!z.string().uuid().safeParse(discoveryId).success) throw new AgentApiError("PROTOCOL", "Refusing to report on an id that is not a UUID");
+    return this.request("POST", `/api/v1/print-agent/discoveries/${discoveryId}`, report, discoveryReportResponseSchema);
   }
 
   ack(jobId: string, body: AckBody) {

@@ -91,6 +91,7 @@ export const AUDIT_ACTIONS = [
   "printer.created",
   "printer.updated",
   "printer.deactivated",
+  "printer.discovery_requested",
   "print_agent.created",
   "print_agent.paired",
   "print_agent.revoked",

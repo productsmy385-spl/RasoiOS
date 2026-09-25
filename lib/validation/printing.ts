@@ -9,7 +9,7 @@
  */
 import { PrintJobStatus, PrintJobType, PrinterConnection, PrinterHealth, PrinterPurpose } from "@prisma/client";
 import { z } from "zod";
-import { isPrivateLanAddress, USB_ADDRESS_PATTERN } from "@/lib/print/address";
+import { isPrivateIpv4, isPrivateLanAddress, USB_ADDRESS_PATTERN } from "@/lib/print/address";
 import { boundedText, optionalText, strictObject, uuidParam } from "./core";
 
 // ─── Printer addresses (SC-PRINT-06) — shared with the local agent via lib/print/address.ts ───
@@ -162,3 +162,54 @@ export type AgentAckInput = z.input<typeof agentAckSchema>;
 
 export const agentJobParamsSchema = strictObject({ jobId: uuidParam });
 export type AgentJobParamsInput = z.input<typeof agentJobParamsSchema>;
+
+// ─── LAN printer discovery (RASOIOS-ADR-015) ───
+
+/** SA-PRN-07 — start a scan on one of the caller's agents. The agent id is re-checked against the caller's tenant. */
+export const startPrinterDiscoverySchema = strictObject({ agentId: uuidParam });
+export type StartPrinterDiscoveryInput = z.input<typeof startPrinterDiscoverySchema>;
+
+/** LD-PRN-04 — read one scan of the caller's tenant. */
+export const printerDiscoveryIdSchema = strictObject({ discoveryId: uuidParam });
+export type PrinterDiscoveryIdInput = z.input<typeof printerDiscoveryIdSchema>;
+
+export const DISCOVERY_MAX_RESULTS = 64;
+const shortText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .optional()
+    .transform((value) => (value ? value : undefined));
+
+/**
+ * One device the agent observed. Untrusted input from a device on a restaurant LAN (SC-VAL-07): only private IPv4,
+ * bounded text, known protocol values. `rawPrinting` means port-9100 raw printing answered or was advertised.
+ */
+export const discoveredPrinterSchema = strictObject({
+  address: z.string().refine(isPrivateIpv4, "Only private IPv4 addresses are accepted"),
+  port: z.number().int().min(1).max(65535),
+  protocol: z.enum(["RAW_9100", "IPP"]),
+  rawPrinting: z.boolean(),
+  name: shortText(80),
+  manufacturer: shortText(60),
+  model: shortText(80),
+  sources: z.array(z.enum(["MDNS", "PORT_PROBE"])).min(1).max(2),
+});
+export type DiscoveredPrinter = z.output<typeof discoveredPrinterSchema>;
+
+/** RH-AGT-06 — the agent's single report for a scan it picked up. */
+export const agentDiscoveryReportSchema = strictObject({
+  outcome: z.enum(["COMPLETED", "FAILED"]),
+  errorCode: z
+    .string()
+    .trim()
+    .max(40)
+    .regex(/^[A-Z][A-Z0-9_]*$/, "Use an UPPER_SNAKE_CASE error code")
+    .optional(),
+  printers: z.array(discoveredPrinterSchema).max(DISCOVERY_MAX_RESULTS).default([]),
+});
+export type AgentDiscoveryReportInput = z.input<typeof agentDiscoveryReportSchema>;
+export type AgentDiscoveryReport = z.output<typeof agentDiscoveryReportSchema>;
+
+export const agentDiscoveryParamsSchema = strictObject({ discoveryId: uuidParam });

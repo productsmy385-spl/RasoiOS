@@ -372,4 +372,5 @@ Supersedes v1.0 questions: old Q-001 (certified printers) → Q-011 · old Q-002
 - **Blocking?** No — manual registration covers the required flow.
 - **Owner:** Gopala Krishna
 - **Decision deadline:** Before S1-P25-T009 (physical printing QA)
-- **Status:** OPEN — deferred by the Project Owner on 2026-09-23 pending an ADR; not implemented.
+- **Status:** ANSWERED 2026-09-25 — **B**, recorded as RASOIOS-ADR-015 and implemented (console "Find nearby printers";
+  one-shot mDNS query from an ephemeral port + port-9100 probe of the agent's own /24; nothing auto-registered).

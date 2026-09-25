@@ -7,6 +7,7 @@ import {
   createPrinter,
   createTestPrintJob,
   deactivatePrinter,
+  getPrinterDiscovery,
   getPrintingConsole,
   listActivePrinters,
   listAgents,
@@ -16,6 +17,7 @@ import {
   reprintKot,
   retryPrintJob,
   revokePrintAgent,
+  startPrinterDiscovery,
   updatePrinter,
 } from "@/lib/services/printing";
 import { parseInput } from "@/lib/validation/core";
@@ -23,6 +25,8 @@ import {
   createPrintAgentSchema,
   createPrinterSchema,
   printAgentIdSchema,
+  printerDiscoveryIdSchema,
+  startPrinterDiscoverySchema,
   printJobFiltersSchema,
   printReceiptSchema,
   printerIdSchema,
@@ -40,6 +44,8 @@ import {
   type RetryPrintJobInput,
   type TestPrintInput,
   type UpdatePrinterInput,
+  type PrinterDiscoveryIdInput,
+  type StartPrinterDiscoveryInput,
 } from "@/lib/validation/printing";
 
 /**
@@ -152,4 +158,20 @@ export const revokePrintAgentAction = action(async (input: PrintAgentIdInput) =>
   const ctx = await requireTenant("print_agent:manage");
   const { agentId } = parseInput(printAgentIdSchema, input);
   return revokePrintAgent(ctx, agentId);
+});
+
+// ─── LAN printer discovery (RASOIOS-ADR-015) ───
+
+/** SA-PRN-07 — ask one of the tenant's online agents to scan its LAN — `printer:manage`. */
+export const startPrinterDiscoveryAction = action(async (input: StartPrinterDiscoveryInput) => {
+  const ctx = await requireTenant("printer:manage");
+  const { agentId } = parseInput(startPrinterDiscoverySchema, input);
+  return startPrinterDiscovery(ctx, agentId);
+});
+
+/** LD-PRN-04 — the scan's state and what it found — `printer:manage`. */
+export const getPrinterDiscoveryAction = action(async (input: PrinterDiscoveryIdInput) => {
+  const ctx = await requireTenant("printer:manage");
+  const { discoveryId } = parseInput(printerDiscoveryIdSchema, input);
+  return getPrinterDiscovery(ctx, discoveryId);
 });

@@ -1,5 +1,5 @@
 import "server-only";
-import { PrintAgentStatus, PrintJobStatus, PrintJobType, PrinterConnection, PrinterHealth, PrinterPurpose, Prisma } from "@prisma/client";
+import { PrintAgentStatus, PrintJobStatus, PrintJobType, PrinterConnection, PrinterDiscoveryStatus, PrinterHealth, PrinterPurpose, Prisma } from "@prisma/client";
 import type { AgentContext, TenantContext, TenantScopedContext } from "@/lib/auth/context-types";
 import { db } from "@/lib/db/prisma";
 import { ConflictError } from "@/lib/errors";
@@ -874,4 +874,89 @@ export async function applyPrinterHealth(ctx: AgentContext, reports: readonly Pr
     else ignored.push(report.printerId);
   }
   return { applied, ignored };
+}
+
+// ─── LAN printer discovery (RASOIOS-ADR-015) ───
+
+export type PrinterDiscoveryRow = {
+  id: string;
+  printAgentId: string;
+  status: PrinterDiscoveryStatus;
+  results: unknown;
+  errorCode: string | null;
+  requestedAt: Date;
+  startedAt: Date | null;
+  completedAt: Date | null;
+};
+
+const discoverySelect = {
+  id: true,
+  printAgentId: true,
+  status: true,
+  results: true,
+  errorCode: true,
+  requestedAt: true,
+  startedAt: true,
+  completedAt: true,
+} as const;
+
+/** A scan of this agent that is still REQUESTED or RUNNING and newer than `since` (so a new click reuses it). */
+export async function findOpenDiscovery(client: Tx, ctx: TenantContext, printAgentId: string, since: Date): Promise<PrinterDiscoveryRow | null> {
+  return client.printerDiscovery.findFirst({
+    where: tenantScope(ctx, { printAgentId, status: { in: [PrinterDiscoveryStatus.REQUESTED, PrinterDiscoveryStatus.RUNNING] }, requestedAt: { gte: since } }),
+    orderBy: { requestedAt: "desc" },
+    select: discoverySelect,
+  });
+}
+
+export async function insertDiscovery(client: Tx, ctx: TenantContext, printAgentId: string, at: Date): Promise<PrinterDiscoveryRow> {
+  return client.printerDiscovery.create({
+    data: { tenantId: ctx.tenantId, printAgentId, requestedByUserId: ctx.userId, requestedAt: at },
+    select: discoverySelect,
+  });
+}
+
+/** One scan of the caller's tenant; another tenant's id is a miss. */
+export async function findDiscovery(ctx: TenantContext, discoveryId: string): Promise<PrinterDiscoveryRow | null> {
+  return mapErrors("Printer discovery", () => db.printerDiscovery.findUnique({ where: tenantKey(ctx, discoveryId), select: discoverySelect }));
+}
+
+/**
+ * Hands the oldest waiting scan of *this* agent to it, atomically (REQUESTED → RUNNING). Tenant and agent come from
+ * the bearer token, so an agent can never pick up another agent's — or another tenant's — request.
+ */
+export async function takeRequestedDiscovery(ctx: AgentContext, since: Date, at: Date): Promise<string | null> {
+  const rows = await mapErrors("Printer discovery", () =>
+    db.$queryRaw<Array<{ id: string }>>`
+      UPDATE printer_discoveries d
+      SET status = 'RUNNING'::printer_discovery_status, started_at = ${at}, updated_at = now()
+      WHERE d.id = (
+        SELECT id FROM printer_discoveries
+        WHERE tenant_id = ${ctx.tenantId}::uuid
+          AND print_agent_id = ${ctx.agentId}::uuid
+          AND status = 'REQUESTED'
+          AND requested_at >= ${since}
+        ORDER BY requested_at
+        LIMIT 1
+        FOR UPDATE SKIP LOCKED
+      ) AND d.tenant_id = ${ctx.tenantId}::uuid
+      RETURNING d.id::text AS id`,
+  );
+  return rows[0]?.id ?? null;
+}
+
+/** RUNNING → COMPLETED/FAILED, only for the agent that is running it. Returns false when it was not (any more). */
+export async function completeDiscovery(
+  ctx: AgentContext,
+  discoveryId: string,
+  outcome: { status: "COMPLETED" | "FAILED"; results: Prisma.InputJsonValue; errorCode: string | null },
+  at: Date,
+): Promise<boolean> {
+  const { count } = await mapErrors("Printer discovery", () =>
+    db.printerDiscovery.updateMany({
+      where: tenantScope(ctx, { id: discoveryId, printAgentId: ctx.agentId, status: PrinterDiscoveryStatus.RUNNING }),
+      data: { status: outcome.status, results: outcome.results, errorCode: outcome.errorCode, completedAt: at },
+    }),
+  );
+  return count === 1;
 }

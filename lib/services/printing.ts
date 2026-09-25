@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { PrintJobStatus, PrintJobType, PrinterHealth, type PrinterConnection, type PrinterPurpose } from "@prisma/client";
+import { PrintJobStatus, PrintJobType, PrinterHealth, type PrinterConnection, type PrinterPurpose, type Prisma } from "@prisma/client";
 import { audit } from "@/lib/audit/write";
 import { issueAgentToken, sha256Hex } from "@/lib/auth/agent";
 import type { AgentContext, TenantContext } from "@/lib/auth/context-types";
@@ -26,6 +26,12 @@ import {
   insertPrintAgentPairing,
   kitchenSectionExists,
   kotDispatchOfOrder,
+  completeDiscovery,
+  findDiscovery,
+  findOpenDiscovery,
+  insertDiscovery,
+  takeRequestedDiscovery,
+  type PrinterDiscoveryRow,
   listActivePrinters as listActivePrintersData,
   listPrintAgents,
   listPrinters as listPrintersData,
@@ -55,7 +61,7 @@ import { renderReceiptDocument } from "@/lib/print/render-receipt";
 import { renderTestDocument } from "@/lib/print/render-test";
 import { consume } from "@/lib/security/rate-limit";
 import { now } from "@/lib/time/clock";
-import { PAIRING_ALPHABET, PAIRING_CODE_LENGTH, connectionAddressIssue } from "@/lib/validation/printing";
+import { PAIRING_ALPHABET, PAIRING_CODE_LENGTH, connectionAddressIssue, discoveredPrinterSchema, type AgentDiscoveryReport, type DiscoveredPrinter } from "@/lib/validation/printing";
 
 /**
  * Printing services (S1-P16-T003/T004/T007, ADR-004, ADR-007). Rebuilt on `lib/data/printing.ts`: this module no
@@ -619,13 +625,19 @@ export async function recordHeartbeat(ctx: AgentContext, input: { agentVersion?:
   return { serverTime: at.toISOString(), pollIntervalMs: POLL_INTERVAL_MS, heartbeatIntervalMs: HEARTBEAT_INTERVAL_MS };
 }
 
-/** RH-AGT-03 — atomic lease claim, restricted to the agent's tenant and its own printers. */
-export async function claimPrintJobs(ctx: AgentContext, max: number): Promise<{ jobs: ClaimedJob[] }> {
-  const jobs = await claimJobs(ctx, max, now());
+/**
+ * RH-AGT-03 — atomic lease claim, restricted to the agent's tenant and its own printers. The response also hands over
+ * a printer scan an admin asked this agent for (ADR-015), so no separate poll is needed.
+ */
+export async function claimPrintJobs(ctx: AgentContext, max: number): Promise<{ jobs: ClaimedJob[]; discovery: { discoveryId: string } | null }> {
+  const at = now();
+  const jobs = await claimJobs(ctx, max, at);
+  const discoveryId = await takeRequestedDiscovery(ctx, new Date(at.getTime() - DISCOVERY_PICKUP_MS), at);
+  if (discoveryId) logger.info("printer.discovery_started", { requestId: ctx.requestId, tenantId: ctx.tenantId, printAgentId: ctx.agentId, discoveryId });
   if (jobs.length > 0) {
     logger.info("print_job.claimed", { requestId: ctx.requestId, tenantId: ctx.tenantId, printAgentId: ctx.agentId, count: jobs.length });
   }
-  return { jobs };
+  return { jobs, discovery: discoveryId ? { discoveryId } : null };
 }
 
 /**
@@ -705,4 +717,105 @@ export async function kitchenDispatchOfOrder(ctx: TenantContext, orderId: string
       return { kotNumber: row.kotNumber, sectionName: row.sectionName, printerName: row.job?.printerName ?? null, state };
     }),
   };
+}
+
+// ─── LAN printer discovery (RASOIOS-ADR-015) ───
+
+/** A request not picked up within this window is reported as "agent not responding" (idle agents poll every ≤15 s). */
+export const DISCOVERY_PICKUP_MS = 45_000;
+/** A scan takes ~6 s; one still RUNNING after this is treated as failed. */
+export const DISCOVERY_RUN_MS = 60_000;
+const DISCOVERY_RATE_LIMIT = { limit: 6, windowSec: 60, failOpen: false } as const;
+
+export type DiscoveryState = "REQUESTED" | "RUNNING" | "COMPLETED" | "FAILED" | "AGENT_NOT_RESPONDING";
+export type DiscoveredPrinterView = DiscoveredPrinter & { alreadyAddedAs: string | null };
+export type PrinterDiscoveryView = {
+  id: string;
+  agentId: string;
+  state: DiscoveryState;
+  errorCode: string | null;
+  printers: DiscoveredPrinterView[];
+  requestedAt: string;
+};
+
+function discoveryState(row: PrinterDiscoveryRow, at: Date): DiscoveryState {
+  if (row.status === "REQUESTED" && at.getTime() - row.requestedAt.getTime() > DISCOVERY_PICKUP_MS) return "AGENT_NOT_RESPONDING";
+  if (row.status === "RUNNING" && row.startedAt && at.getTime() - row.startedAt.getTime() > DISCOVERY_RUN_MS) return "FAILED";
+  return row.status;
+}
+
+async function toDiscoveryView(ctx: TenantContext, row: PrinterDiscoveryRow): Promise<PrinterDiscoveryView> {
+  const stored = Array.isArray(row.results) ? row.results : [];
+  const printers = stored.flatMap((entry) => {
+    const parsed = discoveredPrinterSchema.safeParse(entry);
+    return parsed.success ? [parsed.data] : [];
+  });
+  // Mark devices this restaurant already uses, by the exact LAN address the printer row stores.
+  const existing = new Map<string, string>();
+  for (const printer of await listPrintersData(ctx)) {
+    if (printer.connectionType === "LAN" && printer.connectionAddress && printer.isActive) {
+      const [host, port] = printer.connectionAddress.split(":");
+      existing.set(`${host}:${port ?? "9100"}`, printer.name);
+    }
+  }
+  return {
+    id: row.id,
+    agentId: row.printAgentId,
+    state: discoveryState(row, now()),
+    errorCode: row.errorCode,
+    printers: printers.map((p) => ({ ...p, alreadyAddedAs: existing.get(`${p.address}:${p.port}`) ?? null })),
+    requestedAt: row.requestedAt.toISOString(),
+  };
+}
+
+/** Thrown when the chosen agent cannot run a scan right now. */
+export class AgentOfflineError extends ConflictError {
+  constructor() {
+    super("That print agent is offline. Start the agent on the restaurant PC and try again.", "AGENT_OFFLINE");
+  }
+}
+
+/**
+ * SA-PRN-07 — asks one of the caller's own online agents to scan its LAN. A second click while a scan is open returns
+ * the same scan. Audited (it makes a device on the restaurant network send probes).
+ */
+export async function startPrinterDiscovery(ctx: TenantContext, agentId: string): Promise<PrinterDiscoveryView> {
+  await enforceRateLimit("printer.discovery", ctx.userId, DISCOVERY_RATE_LIMIT, "Too many scans. Wait a minute and try again.");
+  const at = now();
+  const row = await withTx(ctx, async (tx) => {
+    const agent = required(await findPrintAgentRow(tx, ctx, agentId), "Print agent");
+    if (!isAgentOnline(agent, at)) throw new AgentOfflineError();
+    const open = await findOpenDiscovery(tx, ctx, agentId, new Date(at.getTime() - DISCOVERY_PICKUP_MS));
+    if (open) return open;
+    const created = await insertDiscovery(tx, ctx, agentId, at);
+    await audit(tx, ctx, { action: "printer.discovery_requested", resourceType: "printer_discovery", resourceId: created.id, after: { printAgentId: agentId } });
+    return created;
+  });
+  logger.info("printer.discovery_requested", { requestId: ctx.requestId, tenantId: ctx.tenantId, printAgentId: agentId, discoveryId: row.id });
+  return toDiscoveryView(ctx, row);
+}
+
+/** LD-PRN-04 — the console polls this while the agent scans. */
+export async function getPrinterDiscovery(ctx: TenantContext, discoveryId: string): Promise<PrinterDiscoveryView> {
+  return toDiscoveryView(ctx, required(await findDiscovery(ctx, discoveryId), "Printer scan"));
+}
+
+/**
+ * RH-AGT-06 — the agent's one report. Accepted only for a RUNNING scan of this agent (tenant and agent from the token);
+ * anything else is 409, so a report can never land on another agent's or tenant's scan.
+ */
+export async function reportPrinterDiscovery(ctx: AgentContext, discoveryId: string, report: AgentDiscoveryReport): Promise<{ discoveryId: string; status: "COMPLETED" | "FAILED" }> {
+  // One entry per address:port — a device found by mDNS and by the port probe is one device.
+  const unique = new Map<string, DiscoveredPrinter>();
+  for (const printer of report.printers) unique.set(`${printer.address}:${printer.port}`, printer);
+  const status = report.outcome;
+  const saved = await completeDiscovery(
+    ctx,
+    discoveryId,
+    { status, results: [...unique.values()] as unknown as Prisma.InputJsonValue, errorCode: status === "FAILED" ? (report.errorCode ?? "DISCOVERY_FAILED") : null },
+    now(),
+  );
+  if (!saved) throw new ConflictError("This scan is not running on this agent.", "DISCOVERY_NOT_RUNNING");
+  logger.info("printer.discovery_reported", { requestId: ctx.requestId, tenantId: ctx.tenantId, printAgentId: ctx.agentId, discoveryId, status, found: unique.size });
+  return { discoveryId, status };
 }

@@ -42,21 +42,25 @@ type FormState = {
   printAgentId: string;
 };
 
-function stateOf(printer: PrinterDto | null): FormState {
+/** Values for a new printer found by a LAN scan (ADR-015): its address and the agent that found it. */
+export type PrinterPreset = Partial<Pick<FormState, "name" | "connectionAddress" | "printAgentId">>;
+
+function stateOf(printer: PrinterDto | null, preset?: PrinterPreset): FormState {
   return {
-    name: printer?.name ?? "",
+    name: printer?.name ?? preset?.name ?? "",
     purpose: printer?.purpose ?? "KOT",
     connectionType: printer?.connectionType ?? "LAN",
-    connectionAddress: printer?.connectionAddress ?? "",
+    connectionAddress: printer?.connectionAddress ?? preset?.connectionAddress ?? "",
     paperWidthMm: String(printer?.paperWidthMm ?? 80),
     kitchenSectionId: printer?.kitchenSectionId ?? "",
-    printAgentId: printer?.printAgentId ?? "",
+    printAgentId: printer?.printAgentId ?? preset?.printAgentId ?? "",
   };
 }
 
 export function PrinterDialog({
   open,
   printer,
+  preset,
   sections,
   agents,
   onClose,
@@ -64,23 +68,24 @@ export function PrinterDialog({
 }: {
   open: boolean;
   printer: PrinterDto | null;
+  preset?: PrinterPreset;
   sections: readonly PrinterDialogOption[];
   agents: readonly PrinterDialogOption[];
   onClose: () => void;
-  onSaved: (message: string) => void;
+  onSaved: (message: string, saved: PrinterDto) => void;
 }) {
-  const [form, setForm] = React.useState<FormState>(() => stateOf(printer));
+  const [form, setForm] = React.useState<FormState>(() => stateOf(printer, preset));
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string[]>>({});
   const [formError, setFormError] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState(false);
 
   React.useEffect(() => {
     if (open) {
-      setForm(stateOf(printer));
+      setForm(stateOf(printer, preset));
       setFieldErrors({});
       setFormError(null);
     }
-  }, [open, printer]);
+  }, [open, printer, preset]);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((current) => ({ ...current, [key]: value }));
 
@@ -105,7 +110,7 @@ export function PrinterDialog({
       if (!result.error.fieldErrors) setFormError(result.error.message);
       return;
     }
-    onSaved(printer ? `${result.data.name} updated.` : `${result.data.name} added.`);
+    onSaved(printer ? `${result.data.name} updated.` : `${result.data.name} added.`, result.data);
   }
 
   const addressHelp =

@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import type { PrintJobStatus, PrintJobType, PrinterHealth } from "@prisma/client";
-import { CircleDashed, Pencil, Plus, PrinterCheck, RefreshCw, TriangleAlert, WifiOff } from "lucide-react";
+import { CircleDashed, Pencil, Plus, PrinterCheck, Radar, RefreshCw, TriangleAlert, WifiOff } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,7 +28,8 @@ import {
   revokePrintAgentAction,
 } from "./actions";
 import { PairAgentDialog } from "./pair-agent-dialog";
-import { PrinterDialog } from "./printer-dialog";
+import { DiscoveryDialog } from "./discovery-dialog";
+import { PrinterDialog, type PrinterPreset } from "./printer-dialog";
 
 /**
  * Printing console (S1-P16-T006/T009; api.md LD-PRN-01, RH-PRN-01, SA-PRN-01…05, SA-AGT-01/02).
@@ -107,7 +108,8 @@ export function PrintingConsoleView({
   const [statusTab, setStatusTab] = React.useState("ALL");
   const [typeTab, setTypeTab] = React.useState("ALL");
   const [busyId, setBusyId] = React.useState<string | null>(null);
-  const [editing, setEditing] = React.useState<{ open: boolean; printer: PrinterDto | null }>({ open: false, printer: null });
+  const [editing, setEditing] = React.useState<{ open: boolean; printer: PrinterDto | null; preset?: PrinterPreset; fromScan?: boolean }>({ open: false, printer: null });
+  const [discovering, setDiscovering] = React.useState(false);
   const [pairing, setPairing] = React.useState(false);
   const [deactivating, setDeactivating] = React.useState<PrinterDto | null>(null);
   const [revoking, setRevoking] = React.useState<PrintingConsoleAgent | null>(null);
@@ -295,10 +297,14 @@ export function PrintingConsoleView({
   const printersTab = (
     <div className="flex flex-col gap-4">
       {can.managePrinters && (
-        <div className="flex justify-end">
-          <Button variant="primary" onClick={() => setEditing({ open: true, printer: null })}>
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button variant="primary" onClick={() => setDiscovering(true)}>
+            <Icon icon={Radar} size={18} />
+            Find nearby printers
+          </Button>
+          <Button variant="secondary" onClick={() => setEditing({ open: true, printer: null })}>
             <Icon icon={Plus} size={18} />
-            Add printer
+            Add printer manually
           </Button>
         </div>
       )}
@@ -437,14 +443,38 @@ export function PrintingConsoleView({
       <PrinterDialog
         open={editing.open}
         printer={editing.printer}
+        preset={editing.preset}
         sections={sections}
         agents={agents.filter((agent) => agent.status !== "REVOKED").map((agent) => ({ id: agent.id, name: agent.name }))}
         onClose={() => setEditing({ open: false, printer: null })}
-        onSaved={async (message) => {
+        onSaved={async (message, saved) => {
+          const fromScan = editing.fromScan;
           setEditing({ open: false, printer: null });
           toast.success(message);
           await reloadConsole();
           router.refresh();
+          // Found by a scan: prove the connection with a real test page. The card turns Online and the job Printed only
+          // when the agent reports it (ADR-015 §4) — never on this click alone.
+          if (fromScan) await sendTestPrint(saved);
+        }}
+      />
+
+      <DiscoveryDialog
+        open={discovering}
+        agents={agents}
+        onClose={() => setDiscovering(false)}
+        onAdd={(device, agentId) => {
+          setDiscovering(false);
+          setEditing({
+            open: true,
+            printer: null,
+            fromScan: true,
+            preset: {
+              name: (device.name ?? [device.manufacturer, device.model].filter(Boolean).join(" ")).slice(0, 60) || "Network printer",
+              connectionAddress: `${device.address}:${device.port}`,
+              printAgentId: agentId,
+            },
+          });
         }}
       />
 

@@ -1,5 +1,6 @@
 import { parsePrintDocument } from "@/lib/print/types";
-import { AgentApiError, type AckBody, type AgentApiLike, type AgentPrinter, type ClaimedJob, type PrinterHealthValue } from "./api";
+import { AgentApiError, type AckBody, type AgentApiLike, type AgentPrinter, type ClaimedJob, type DiscoveredDevice, type PrinterHealthValue } from "./api";
+import { discoverPrinters } from "./discovery";
 import { encodeDocument } from "./escpos";
 import type { PrintedJournal } from "./journal";
 import type { Logger } from "./logger";
@@ -38,6 +39,8 @@ export type RunnerDeps = {
   now?: () => number;
   sleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
   random?: () => number;
+  /** LAN printer scan (RASOIOS-ADR-015); injectable for tests. */
+  discover?: () => Promise<DiscoveredDevice[]>;
 };
 
 type Health = { health: PrinterHealthValue; detail?: string };
@@ -93,8 +96,9 @@ export class PrintAgentRunner {
         await this.heartbeat();
         this.nextHeartbeatAt = this.now() + this.heartbeatIntervalMs;
       }
-      const { jobs } = await this.deps.api.claim(1);
+      const { jobs, discovery } = await this.deps.api.claim(1);
       this.networkFailures = 0;
+      if (discovery) await this.runDiscovery(discovery.discoveryId);
       if (jobs.length > 0) {
         this.emptyPolls = 0;
         for (const job of jobs) await this.process(job);
@@ -162,6 +166,31 @@ export class PrintAgentRunner {
       this.health.set(printer.printerId, { health: "ONLINE" });
     } catch (error) {
       this.health.set(printer.printerId, healthFromError(error));
+    }
+  }
+
+  /**
+   * An admin asked this agent to look for printers (ADR-015). The scan only observes; the one report says what was
+   * seen. A failed scan is reported as FAILED with a code, never as "nothing found".
+   */
+  async runDiscovery(discoveryId: string): Promise<void> {
+    const { logger, api } = this.deps;
+    if (!api.reportDiscovery) return;
+    logger.info("discovery.started", { discoveryId });
+    let report: Parameters<NonNullable<AgentApiLike["reportDiscovery"]>>[1];
+    try {
+      const printers = await (this.deps.discover ?? discoverPrinters)();
+      report = { outcome: "COMPLETED", printers };
+    } catch (error) {
+      const code = error instanceof Error && error.message === "NO_PRIVATE_NETWORK" ? "NO_PRIVATE_NETWORK" : "DISCOVERY_FAILED";
+      report = { outcome: "FAILED", errorCode: code, printers: [] };
+    }
+    try {
+      await api.reportDiscovery(discoveryId, report);
+      logger.info("discovery.reported", { discoveryId, outcome: report.outcome, found: report.printers.length });
+    } catch (error) {
+      if (error instanceof AgentApiError && error.kind === "AUTH") throw new FatalAgentError("The server rejected this agent's token (revoked or replaced). Pair the agent again.");
+      logger.warn("discovery.report_failed", { discoveryId, kind: error instanceof AgentApiError ? error.kind : "UNKNOWN" });
     }
   }
 

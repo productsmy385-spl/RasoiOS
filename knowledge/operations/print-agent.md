@@ -41,6 +41,16 @@ To build locally instead: `npm ci && npm run agent:build` → `print-agent/dist/
 - Choose the purpose — **KOT** (kitchen), **Receipt** (customer bill) or both — the paper width (58/80 mm) and, for
   kitchen printers, the kitchen section.
 
+## 2a. Find nearby printers (automatic discovery)
+
+Printing → Printers → **Find nearby printers** (TENANT_ADMIN). The chosen online agent searches its own network for
+~3 s: DNS-SD/mDNS (`_pdl-datastream._tcp`, `_ipp._tcp`, `_printer._tcp`, answered to a temporary port — the agent
+never listens on 5353) and a connect-only probe of port 9100 on its own /24. Results show the address, protocol and
+whether raw ESC/POS printing is possible ("IPP only" printers are not supported). **Add printer** opens the form
+pre-filled and then sends a real test page. Not every printer announces itself — if none are found, add it manually.
+Requirements: the agent PC and the printer on the same subnet; firewalls must allow outbound TCP 9100 and UDP 5353
+replies (Windows Defender may ask once on first scan).
+
 ## 3. Install and pair
 
 In RASOIOS → Printing → Agents → **Pair a print agent**, name the PC and copy the one-time code (10 minutes, single use).
