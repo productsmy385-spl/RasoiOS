@@ -16,6 +16,21 @@ import { siteNavLinks, socialLinks, type SiteView } from "./site-view";
  * header shows the restaurant's own mark, and the footer its own details.
  */
 
+/**
+ * Staff sign-in lives on the apex host only (ADR-012 §6). Linking to its absolute URL means a click on a tenant
+ * sub-domain goes straight there instead of relying on the middleware redirect — which Next.js turns into a relative
+ * (self-looping) `Location` when the apex is the dev server's own `localhost:<port>`.
+ */
+function staffSignInHref(): string {
+  const base = process.env.NEXT_PUBLIC_APP_URL;
+  if (!base) return "/sign-in";
+  try {
+    return new URL("/sign-in", base).toString();
+  } catch {
+    return "/sign-in";
+  }
+}
+
 function SiteHeader({ view }: { view: SiteView }) {
   const { site } = view;
   const links = siteNavLinks(site.sections);
@@ -41,11 +56,10 @@ function SiteHeader({ view }: { view: SiteView }) {
             </nav>
           ) : null}
           <OpenNowBadge openNow={site.openNow} />
-          {/* The restaurant's own staff sign in here. `/sign-in` is apex-only: on a tenant sub-domain the middleware
-              sends it to the apex host (one Clerk domain, ADR-012 §6), and after sign-in the console shows only the
-              restaurants that person is a member of. */}
+          {/* The restaurant's own staff sign in here, on the apex host (one Clerk domain); after sign-in the console
+              shows only the restaurants that person is a member of. */}
           <Link
-            href="/sign-in"
+            href={staffSignInHref()}
             prefetch={false}
             className="inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border border-border-strong px-3 text-nav text-fg-primary hover:bg-raised"
           >
