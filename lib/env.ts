@@ -86,21 +86,24 @@ const envSchema = z
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: [missing], message: "is required when the other ImageKit setting is set" });
     }
     if (env.NODE_ENV !== "production") return;
-    // A production build served on loopback (CI end-to-end runs, a local `next start`) never crosses a network, so
-    // there is nothing for TLS to protect. Every other host — including private addresses — still needs https.
+    // A production build run entirely on one machine (CI end-to-end, a local `next start`) — app URL *and* database on
+    // loopback — never crosses a network, so there is nothing for TLS to protect. A deployment whose database is
+    // remote but whose app URL says localhost is a copied development .env: refuse it loudly at boot, because every
+    // sign-up link and Staff login would otherwise point visitors at their own machine.
     let appHost = "";
     try {
       appHost = new URL(env.NEXT_PUBLIC_APP_URL).hostname;
     } catch {
       // Malformed URLs are reported by the field's own rule.
     }
-    if (!env.NEXT_PUBLIC_APP_URL.startsWith("https://") && !LOOPBACK_HOSTS.has(appHost)) {
+    const url = env.DATABASE_URL;
+    const host = url.match(/@([^:/?]+)/)?.[1] ?? "";
+    const fullyLocal = LOOPBACK_HOSTS.has(appHost) && LOOPBACK_HOSTS.has(host);
+    if (!env.NEXT_PUBLIC_APP_URL.startsWith("https://") && !fullyLocal) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["NEXT_PUBLIC_APP_URL"], message: "must use https in production" });
     }
     // SC-DB-01: TLS to PostgreSQL. Railway private-network hosts (*.railway.internal) are accepted pending
     // verification of transport encryption in S1-P27-T002 [assumption]; a database on loopback needs no TLS.
-    const url = env.DATABASE_URL;
-    const host = url.match(/@([^:/?]+)/)?.[1] ?? "";
     if (!/[?&]sslmode=(require|verify-ca|verify-full)\b/.test(url) && !host.endsWith(".railway.internal") && !LOOPBACK_HOSTS.has(host)) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["DATABASE_URL"], message: "must set sslmode=require in production" });
     }

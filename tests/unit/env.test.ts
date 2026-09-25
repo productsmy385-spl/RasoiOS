@@ -92,6 +92,10 @@ describe("TC-FOUND-003 environment validation", () => {
     // Loopback never crosses a network (CI end-to-end runs a production build on localhost).
     expect(problemsOf({ ...valid, NODE_ENV: "production" })).toEqual([]);
     expect(problemsOf({ ...valid, NODE_ENV: "production", NEXT_PUBLIC_APP_URL: "http://127.0.0.1:3100", DATABASE_URL: "postgresql://app:pw@127.0.0.1:5432/rasoios" })).toEqual([]);
+    // A deployment with a remote database but a copied development app URL is refused at boot.
+    expect(problemsOf({ ...valid, NODE_ENV: "production", DATABASE_URL: "postgresql://app:pw@db.host:5432/rasoios?sslmode=require" })).toContain(
+      "NEXT_PUBLIC_APP_URL: must use https in production",
+    );
     // A look-alike host is not loopback.
     expect(problemsOf({ ...valid, NODE_ENV: "production", NEXT_PUBLIC_APP_URL: "http://localhost.evil.test" })).toContain("NEXT_PUBLIC_APP_URL: must use https in production");
 

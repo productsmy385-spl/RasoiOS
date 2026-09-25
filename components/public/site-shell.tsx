@@ -25,7 +25,12 @@ function staffSignInHref(): string {
   const base = process.env.NEXT_PUBLIC_APP_URL;
   if (!base) return "/sign-in";
   try {
-    return new URL("/sign-in", base).toString();
+    const url = new URL("/sign-in", base);
+    // NEXT_PUBLIC_* is baked in at build time. A production build that was given a loopback APP_URL (e.g. a copied
+    // development .env) must never send a visitor to *their own* machine — that is ERR_CONNECTION_REFUSED for everyone.
+    // The same-site path is always reachable; on a tenant sub-domain the middleware forwards it to the apex host.
+    if (process.env.NODE_ENV === "production" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)) return "/sign-in";
+    return url.toString();
   } catch {
     return "/sign-in";
   }
