@@ -160,13 +160,14 @@ export function activeNavItem<T extends Pick<NavItem, "href"> & { activePrefix?:
 }
 
 /**
- * Bottom navigation below 768 px (frontend.md §3.1, ADR-013 §3): the four most relevant areas per role, in order.
+ * Bottom navigation below 768 px (frontend.md §3.1, ADR-013 §3): up to four of the role's most-used areas, in order.
  * Only items the role can use are shown, so a preset can never offer a link the server would refuse. The role's
  * centre action (`primaryActionFor`) is deliberately not in the presets — it gets its own raised button.
  */
 export const BOTTOM_NAV_PRESETS: Readonly<Record<TenantRole, readonly NavKey[]>> = {
-  TENANT_ADMIN: ["dashboard", "orders", "menu", "reports"],
-  MANAGER: ["dashboard", "orders", "menu", "reports"],
+  // Reports left the phone bar on the Project Owner's request (2026-09-25); it stays in the side panel / More.
+  TENANT_ADMIN: ["dashboard", "orders", "menu"],
+  MANAGER: ["dashboard", "orders", "menu"],
   CASHIER: ["orders", "transactions", "customers", "printing"],
   WAITER: ["orders", "customers", "menu", "settings"],
   KITCHEN: ["orders", "menu", "printing", "settings"],

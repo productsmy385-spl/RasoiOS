@@ -148,9 +148,17 @@ describe("bottom bar (< 768 px)", () => {
     for (const role of ROLES) {
       const caps = permissionsForTenantRole(role);
       const items = bottomNavItemsFor(role, caps);
-      expect(items.length, role).toBe(4);
+      // Reports left the TENANT_ADMIN and MANAGER phone bar at the Project Owner's request (2026-09-25).
+      const expected = role === "TENANT_ADMIN" || role === "MANAGER" ? 3 : 4;
+      expect(items.length, role).toBe(expected);
       for (const item of items) expect(caps.has(item.capability), `${role} ${item.key}`).toBe(true);
-      expect(BOTTOM_NAV_PRESETS[role].length).toBe(4);
+      expect(BOTTOM_NAV_PRESETS[role].length).toBe(expected);
+    }
+    // …but a destination taken off the bar is never lost: it is still one tap away under More.
+    for (const role of ["TENANT_ADMIN", "MANAGER"] as const) {
+      const caps = permissionsForTenantRole(role);
+      expect(bottomNavItemsFor(role, caps).map((i) => i.key), role).not.toContain("reports");
+      expect(moreNavItemsFor(role, caps).map((i) => i.key), role).toContain("reports");
     }
     // A preset entry the role cannot use is dropped rather than shown.
     expect(bottomNavItemsFor("WAITER", new Set(["order:read"])).map((i) => i.key)).toEqual(["orders"]);
