@@ -27,7 +27,8 @@ export function MenuItemCard({ item, formatting }: { item: PublicMenuItemData; f
   return (
     <article
       className={cn(
-        "flex flex-col overflow-hidden rounded-2xl border border-border-subtle bg-card",
+        // w-full: the card fills its grid cell, so every card in a row is the same width however long its text is.
+        "flex w-full flex-col overflow-hidden rounded-2xl border border-border-subtle bg-card",
         !item.isAvailable && "opacity-80",
       )}
     >
