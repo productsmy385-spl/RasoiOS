@@ -74,6 +74,20 @@ describe("TC-DS-001 Tailwind theme = design tokens", () => {
   it("loads no web fonts from Google at runtime", () => {
     expect(globalsCss).not.toMatch(/fonts\.googleapis\.com|fonts\.gstatic\.com|@import url/);
   });
+
+  /**
+   * ...or at build time. `next/font/google` downloads from Google during `next build`, which made the build fail
+   * whenever Google answered with something its parser did not expect — three times on 2026-09-25, on commits that
+   * had nothing to do with fonts. The files are vendored instead, so a build needs no third party to be up.
+   */
+  it("builds the brand fonts from vendored files, not a download from Google", () => {
+    const offenders = uiFiles.filter((f) => /from\s+["']next\/font\/google["']/.test(readFileSync(f, "utf8")));
+    expect(offenders.map((f) => path.relative(root, f))).toEqual([]);
+    for (const file of ["app/fonts/PlayfairDisplay-Variable.woff2", "app/fonts/PlusJakartaSans-Variable.woff2"]) {
+      // Present, and a real woff2 ("wOF2"), so a truncated or LFS-pointer file fails here rather than in the build.
+      expect(readFileSync(path.join(root, file)).subarray(0, 4).toString("latin1"), file).toBe("wOF2");
+    }
+  });
 });
 
 // TC-DS-016 — glass is a system, not a coating (design.md §4.6, ADR-013 §2).

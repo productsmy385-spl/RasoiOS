@@ -1,13 +1,39 @@
 import type { Metadata } from "next";
-import { Playfair_Display, Plus_Jakarta_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 import { PwaRegister } from "@/components/pwa-register";
 import { THEME_BOOT_SCRIPT } from "@/lib/ui/theme";
 
-// Brand fonts, self-hosted at build time by next/font: no runtime request to Google (S1-P08-T002, SC-HDR-02).
-const display = Playfair_Display({ subsets: ["latin"], weight: ["600", "700"], display: "swap", variable: "--font-display" });
-const sans = Plus_Jakarta_Sans({ subsets: ["latin"], weight: ["400", "500", "600", "700"], display: "swap", variable: "--font-sans" });
+/**
+ * Brand fonts (S1-P08-T002, SC-HDR-02): served from our own origin, never Google, at build time *or* runtime.
+ *
+ * `next/font/google` self-hosts the files it ships, but it downloads them from Google during `next build`, so every
+ * build depended on fonts.googleapis.com answering with exactly the CSS shape its parser expects. When it did not,
+ * the build died with `Cannot read properties of null (reading '1')` inside the font loader — three times on
+ * 2026-09-25 alone, on unrelated commits [fact: CI runs 36122364595, 36125556735]. A build that needs a third party
+ * to be up is a build that fails for reasons that have nothing to do with the change being built.
+ *
+ * The two latin variable files are vendored in `app/fonts/` instead. One file per family covers every weight used
+ * (Plus Jakarta Sans 400–700, Playfair Display 400–900), the bytes are identical to what the loader fetched, and the
+ * build is now reproducible offline. Re-download from Google Fonts only to pick up a new font version.
+ */
+const display = localFont({
+  src: "./fonts/PlayfairDisplay-Variable.woff2",
+  weight: "400 900",
+  style: "normal",
+  display: "swap",
+  variable: "--font-display",
+  fallback: ["Georgia", "serif"],
+});
+const sans = localFont({
+  src: "./fonts/PlusJakartaSans-Variable.woff2",
+  weight: "400 700",
+  style: "normal",
+  display: "swap",
+  variable: "--font-sans",
+  fallback: ["system-ui", "sans-serif"],
+});
 
 export const metadata: Metadata = {
   title: "RASOIOS — Restaurant Operations",
