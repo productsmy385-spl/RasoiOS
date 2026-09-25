@@ -81,7 +81,24 @@ async function buildFixture() {
   const websiteSection = await db.websiteSection.create({
     data: { tenantId: tenant.id, restaurantId: restaurant.id, key: "HERO", sortOrder: 0, headline: "Welcome", ctaLabel: "See the menu", ctaHref: "/menu" },
   });
-  return { tenant, restaurant, user, section, category, item, variant, addon, order, orderItem: items[0], orderItemAddon, kot, kotItem, payment, hours, dayClose, agent, printer, printJob, websiteSection, bucketKey };
+  // A valid asset for the media_assets CHECKs to be pushed against (ADR-017 §3): allowed type, within the size and
+  // dimension limits, an https URL, and live — so `status` and `deleted_at` agree.
+  const mediaAsset = await db.mediaAsset.create({
+    data: {
+      tenantId: tenant.id,
+      purpose: "LOGO",
+      providerFileId: randomUUID(),
+      storagePath: `/rasoios/${tenant.id}/logo/mark.png`,
+      url: `https://ik.imagekit.io/test/${tenant.id}/logo/mark.png`,
+      contentType: "image/png",
+      byteSize: 24_576,
+      width: 512,
+      height: 512,
+      sha256: "a".repeat(64),
+      uploadedByUserId: user.id,
+    },
+  });
+  return { tenant, restaurant, user, section, category, item, variant, addon, order, orderItem: items[0], orderItemAddon, kot, kotItem, payment, hours, dayClose, agent, printer, printJob, websiteSection, mediaAsset, bucketKey };
 }
 
 beforeAll(async () => {
@@ -182,6 +199,13 @@ const CHECK_CASES: CheckCase[] = [
   { constraint: "website_sections_sort_order_check", table: "website_sections", set: "sort_order = 1000", where: byId(() => f.websiteSection.id) },
   { constraint: "website_sections_image_url_https_check", table: "website_sections", set: "image_url = 'http://images.example.com/section.jpg'", where: byId(() => f.websiteSection.id) },
   { constraint: "website_sections_cta_href_check", table: "website_sections", set: "cta_href = 'javascript:alert(1)'", where: byId(() => f.websiteSection.id) },
+  // MEDIA_ASSET (ADR-017 §3, SC-FILE-01). The application checks all of these before it uploads; the database is the
+  // backstop, so each one is proven to reject rather than assumed to.
+  { constraint: "media_assets_content_type_check", table: "media_assets", set: "content_type = 'image/svg+xml'", where: byId(() => f.mediaAsset.id) },
+  { constraint: "media_assets_byte_size_check", table: "media_assets", set: "byte_size = 5242881", where: byId(() => f.mediaAsset.id) },
+  { constraint: "media_assets_dimensions_check", table: "media_assets", set: "width = 4097", where: byId(() => f.mediaAsset.id) },
+  { constraint: "media_assets_url_https_check", table: "media_assets", set: "url = 'http://ik.imagekit.io/test/logo.png'", where: byId(() => f.mediaAsset.id) },
+  { constraint: "media_assets_deleted_at_check", table: "media_assets", set: "status = 'DELETED'", where: byId(() => f.mediaAsset.id) },
   { constraint: "website_sections_cta_pair_check", table: "website_sections", set: "cta_label = NULL", where: byId(() => f.websiteSection.id) },
   // E26 / E27
   { constraint: "tenant_counters_last_value_check", table: "tenant_counters", set: "last_value = -1", where: () => `tenant_id = '${f.tenant.id}'` },
