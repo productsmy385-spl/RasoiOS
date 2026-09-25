@@ -1,4 +1,5 @@
-import { Store } from "lucide-react";
+import { LogIn, Store } from "lucide-react";
+import Link from "next/link";
 import { JsonLd, restaurantJsonLd } from "@/lib/seo/json-ld";
 import { OpenNowBadge } from "./hours";
 import { SiteImage } from "./primitives";
@@ -40,6 +41,17 @@ function SiteHeader({ view }: { view: SiteView }) {
             </nav>
           ) : null}
           <OpenNowBadge openNow={site.openNow} />
+          {/* The restaurant's own staff sign in here. `/sign-in` is apex-only: on a tenant sub-domain the middleware
+              sends it to the apex host (one Clerk domain, ADR-012 §6), and after sign-in the console shows only the
+              restaurants that person is a member of. */}
+          <Link
+            href="/sign-in"
+            prefetch={false}
+            className="inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border border-border-strong px-3 text-nav text-fg-primary hover:bg-raised"
+          >
+            <LogIn aria-hidden="true" className="h-4 w-4" />
+            Staff login
+          </Link>
         </div>
       </div>
     </header>
