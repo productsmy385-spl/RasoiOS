@@ -3,6 +3,7 @@ import { reportRangeOrDefault, salesSummary } from "@/lib/data/reports";
 import { Card } from "@/components/ui/card";
 import { formatMoney } from "@/lib/ui/format";
 import { FileBarChart, TrendingUp, Award } from "lucide-react";
+import { MetricCard } from "@/components/ui/metric-card";
 
 export const dynamic = "force-dynamic";
 
@@ -35,38 +36,15 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
 
       {/* Analytics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="border border-border-subtle bg-card shadow-e1 p-5 flex items-center justify-between border-l-4 border-l-action-primary">
-          <div>
-            <p className="text-xs text-fg-secondary tabular-nums uppercase">Gross Sales</p>
-            <p className="text-2xl font-bold tabular-nums text-fg-accent mt-1">
-              {money(summary.grossSales)}
-            </p>
-            <p className="text-caption text-fg-secondary tabular-nums mt-1">
-              Net {money(summary.netSales)} after {money(summary.refunds)} refunds
-            </p>
-          </div>
-          <TrendingUp className="w-8 h-8 text-fg-accent/40" />
-        </Card>
-
-        <Card className="border border-border-subtle bg-card shadow-e1 p-5 flex items-center justify-between border-l-4 border-l-status-success">
-          <div>
-            <p className="text-xs text-fg-secondary tabular-nums uppercase">Fulfilled Orders</p>
-            <p className="text-2xl font-bold tabular-nums text-status-success mt-1">
-              {summary.completedCount} / {summary.orderCount}
-            </p>
-          </div>
-          <Award className="w-8 h-8 text-status-success/40" />
-        </Card>
-
-        <Card className="border border-border-subtle bg-card shadow-e1 p-5 flex items-center justify-between border-l-4 border-l-action-primary">
-          <div>
-            <p className="text-xs text-fg-secondary tabular-nums uppercase">Average Order Value</p>
-            <p className="text-2xl font-bold tabular-nums text-fg-accent mt-1">
-              {money(summary.averageOrderValue)}
-            </p>
-          </div>
-          <FileBarChart className="w-8 h-8 text-fg-accent/40" />
-        </Card>
+        <MetricCard
+          label="Gross sales"
+          value={money(summary.grossSales)}
+          support={`Net ${money(summary.netSales)} after ${money(summary.refunds)} refunds`}
+          icon={TrendingUp}
+          hue="accent"
+        />
+        <MetricCard label="Fulfilled orders" value={`${summary.completedCount} / ${summary.orderCount}`} support="Completed of all orders placed" icon={Award} hue="success" />
+        <MetricCard label="Average order value" value={money(summary.averageOrderValue)} support="Per completed order" icon={FileBarChart} hue="warning" />
       </div>
 
       {/* Report Breakdown */}

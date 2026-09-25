@@ -14,6 +14,7 @@ import { businessDaysEndingToday, salesSummary, type SalesSummary } from "@/lib/
 import type { DomainHue } from "@/lib/ui/icons";
 import { formatBusinessDate, formatInZone, formatMoney } from "@/lib/ui/format";
 import { NAV_HUES, NAV_ICONS, NAV_ITEMS, type NavKey } from "@/lib/ui/navigation";
+import { MetricCard } from "@/components/ui/metric-card";
 
 export const dynamic = "force-dynamic";
 
@@ -114,13 +115,7 @@ export default async function RestaurantDashboardPage() {
           ) : (
             <div className="grid items-stretch gap-4 md:grid-cols-3 md:gap-6">
               {metricsFor(sales, currency, today.to).map((metric) => (
-                <Card key={metric.label} surface="glass">
-                  <CardHeader className="mb-3" action={<IconTile icon={metric.icon} size="md" tone={metric.hue} />}>
-                    <p className="text-label text-fg-secondary">{metric.label}</p>
-                  </CardHeader>
-                  <p className="text-display-m text-numeric text-fg-primary">{metric.value}</p>
-                  <p className="mt-1 text-caption text-fg-secondary">{metric.support}</p>
-                </Card>
+                <MetricCard key={metric.label} label={metric.label} value={metric.value} support={metric.support} icon={metric.icon} hue={metric.hue} />
               ))}
             </div>
           )}

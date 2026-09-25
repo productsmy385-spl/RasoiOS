@@ -7,7 +7,6 @@ import { PublicAddress } from "@/components/admin/public-address";
 import { Card } from "@/components/ui/card";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { Icon } from "@/components/ui/icon";
-import { IconTile } from "@/components/ui/icon-tile";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { requirePlatformPage } from "@/lib/auth/guards";
 import { hasPermission } from "@/lib/auth/permissions";
@@ -16,6 +15,7 @@ import { getPlatformDashboard } from "@/lib/services/platform-tenants";
 import { normalizeRootDomain } from "@/lib/tenancy/hostnames";
 import { formatInZone } from "@/lib/ui/format";
 import { DOMAIN_HUES, DOMAIN_ICONS, type DomainHue } from "@/lib/ui/icons";
+import { MetricCard } from "@/components/ui/metric-card";
 
 export const dynamic = "force-dynamic";
 
@@ -142,13 +142,7 @@ export default async function PlatformDashboardPage() {
 
 function StatTile({ label, value, icon, hue }: { label: string; value: number; icon: LucideIcon; hue: DomainHue }) {
   return (
-    <Card surface="glass" padding="feature" className="flex-row items-center gap-4">
-      <IconTile icon={icon} size="lg" tone={hue} />
-      <div className="min-w-0">
-        <p className="text-caption text-fg-secondary">{label}</p>
-        <p className="text-display-m tabular-nums text-fg-primary">{value}</p>
-      </div>
-    </Card>
+    <MetricCard label={label} value={value} icon={icon} hue={hue} />
   );
 }
 
