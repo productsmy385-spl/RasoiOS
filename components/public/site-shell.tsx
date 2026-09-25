@@ -6,6 +6,7 @@ import { SiteImage } from "./primitives";
 import { SiteSections } from "./sections";
 import { siteThemeStyle, surfaceThemeAttribute } from "./theme";
 import { siteNavLinks, socialLinks, type SiteView } from "./site-view";
+import { appUrl } from "@/lib/env";
 
 /**
  * The public website shell (S1-P09-T003/T012; ADR-013 §6).
@@ -22,7 +23,7 @@ import { siteNavLinks, socialLinks, type SiteView } from "./site-view";
  * (self-looping) `Location` when the apex is the dev server's own `localhost:<port>`.
  */
 function staffSignInHref(): string {
-  const base = process.env.NEXT_PUBLIC_APP_URL;
+  const base = appUrl();
   if (!base) return "/sign-in";
   try {
     const url = new URL("/sign-in", base);

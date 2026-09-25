@@ -128,6 +128,50 @@ describe("TC-FOUND-003 environment validation", () => {
     expect(problemsOf(none)).toContain("NEXT_PUBLIC_APP_URL: is required");
   });
 
+  it("on Railway, a copied localhost app URL is replaced and the public DB proxy gets sslmode=require", () => {
+    const railway: Record<string, string | undefined> = {
+      ...valid,
+      NODE_ENV: "production",
+      NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+      DATABASE_URL: "postgresql://postgres:pw@iriguchi.proxy.rlwy.net:40123/railway",
+      RAILWAY_PUBLIC_DOMAIN: "rasoios-production.up.railway.app",
+    };
+    applyPlatformDefaults(railway);
+    expect(railway.NEXT_PUBLIC_APP_URL).toBe("https://rasoios-production.up.railway.app");
+    expect(railway.DATABASE_URL).toBe("postgresql://postgres:pw@iriguchi.proxy.rlwy.net:40123/railway?sslmode=require");
+    expect(problemsOf(railway)).toEqual([]);
+
+    // Internal hosts, an explicit sslmode and a real app URL are left exactly as configured.
+    const kept: Record<string, string | undefined> = {
+      ...valid,
+      NEXT_PUBLIC_APP_URL: "https://app.akshaypatra.test",
+      DATABASE_URL: "postgresql://postgres:pw@postgres.railway.internal:5432/railway",
+      RAILWAY_PUBLIC_DOMAIN: "x.up.railway.app",
+    };
+    const before = { ...kept };
+    applyPlatformDefaults(kept);
+    expect(kept).toEqual(before);
+    const verify = { ...valid, DATABASE_URL: "postgresql://p:pw@a.proxy.rlwy.net:1/railway?sslmode=verify-full", RAILWAY_PUBLIC_DOMAIN: "x.up.railway.app" };
+    applyPlatformDefaults(verify);
+    expect(verify.DATABASE_URL).toBe("postgresql://p:pw@a.proxy.rlwy.net:1/railway?sslmode=verify-full");
+
+    // Off Railway nothing changes: the localhost URL is still refused against a remote database.
+    const elsewhere: Record<string, string | undefined> = { ...valid, NODE_ENV: "production", DATABASE_URL: "postgresql://a:b@db.host:5432/x?sslmode=require" };
+    applyPlatformDefaults(elsewhere);
+    expect(problemsOf(elsewhere)).toContain("NEXT_PUBLIC_APP_URL: must use https in production");
+  });
+
+  it("appUrl() reads the live value, not a build-time copy", async () => {
+    const { appUrl } = await import("@/lib/env");
+    const previous = process.env.NEXT_PUBLIC_APP_URL;
+    try {
+      process.env.NEXT_PUBLIC_APP_URL = "https://runtime.example-restaurant.test";
+      expect(appUrl()).toBe("https://runtime.example-restaurant.test");
+    } finally {
+      process.env.NEXT_PUBLIC_APP_URL = previous;
+    }
+  });
+
   it("validates optional webhook secret and image host list formats", () => {
     const problems = problemsOf({ ...valid, CLERK_WEBHOOK_SIGNING_SECRET: "abc", ALLOWED_IMAGE_HOSTS: "images.test,not a host" });
     expect(problems).toContain("CLERK_WEBHOOK_SIGNING_SECRET: must be a Svix signing secret (whsec_…)");

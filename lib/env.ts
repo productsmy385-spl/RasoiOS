@@ -168,9 +168,37 @@ let cached: ServerEnv | undefined;
  */
 export function applyPlatformDefaults(env: Record<string, string | undefined>): void {
   const railwayDomain = env.RAILWAY_PUBLIC_DOMAIN?.trim();
-  if (!env.NEXT_PUBLIC_APP_URL?.trim() && railwayDomain && /^[a-z0-9.-]+$/i.test(railwayDomain)) {
-    env.NEXT_PUBLIC_APP_URL = `https://${railwayDomain}`;
+  if (!railwayDomain || !/^[a-z0-9.-]+$/i.test(railwayDomain)) return;
+
+  // On Railway a missing or loopback app URL is always a mistake (a copied development .env): the service's own
+  // public https domain is the only correct value.
+  const current = env.NEXT_PUBLIC_APP_URL?.trim();
+  let loopback = false;
+  try {
+    loopback = current ? LOOPBACK_HOSTS.has(new URL(current).hostname) : false;
+  } catch {
+    // An unparsable value is reported by validation.
   }
+  if (!current || loopback) env.NEXT_PUBLIC_APP_URL = `https://${railwayDomain}`;
+
+  // Railway's public Postgres proxy (*.proxy.rlwy.net) speaks TLS: require it instead of refusing to boot (SC-DB-01).
+  // This only ever makes the connection stricter.
+  const db = env.DATABASE_URL?.trim();
+  if (db && /@[^/?#]*\.proxy\.rlwy\.net(?::\d+)?\//i.test(db) && !/[?&]sslmode=/i.test(db)) {
+    env.DATABASE_URL = `${db}${db.includes("?") ? "&" : "?"}sslmode=require`;
+  }
+}
+
+/**
+ * This app's public URL at *runtime*. Always use this on the server instead of `process.env.NEXT_PUBLIC_APP_URL`:
+ * Next.js replaces that literal with its build-time value, so a correction made when the server starts (platform
+ * defaults, or a variable changed without a rebuild) would never reach the code. The key is assembled so the
+ * bundler cannot inline it.
+ */
+const APP_URL_KEY = ["NEXT_PUBLIC", "APP_URL"].join("_");
+export function appUrl(): string | undefined {
+  applyPlatformDefaults(process.env);
+  return process.env[APP_URL_KEY]?.trim() || undefined;
 }
 
 export function getEnv(): ServerEnv {

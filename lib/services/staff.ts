@@ -23,6 +23,7 @@ import { consume, type RateLimitPolicy } from "@/lib/security/rate-limit";
 import { now } from "@/lib/time/clock";
 import type { ChangeStaffRoleData, InviteStaffData, ListStaffData } from "@/lib/validation/staff";
 import { assertCanAssignRole, assertCanManage, assertNotLastTenantAdmin, assertNotSelf, assignableRoles, canManageMembership } from "./staff-rules";
+import { appUrl } from "@/lib/env";
 
 /**
  * Staff management (S1-P07-T004; api.md LD-STF-01, SA-STF-01…06; security.md §3.3 rows 14–17; SC-RBAC-04/05,
@@ -69,7 +70,7 @@ function invalidStatus(message: string): ConflictError {
  * at boot by lib/env.ts) — never from input. A missing value is a server misconfiguration (500), checked before Clerk.
  */
 function signUpUrl(): string {
-  const base = process.env.NEXT_PUBLIC_APP_URL;
+  const base = appUrl();
   if (!base || !/^https?:\/\/[^\s]+$/.test(base)) throw new Error("NEXT_PUBLIC_APP_URL is not configured");
   return new URL("/sign-up", base).toString();
 }

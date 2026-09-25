@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { appUrl } from "@/lib/env";
 
 /**
  * LD-PUB-03 robots (S1-P09-T005). Restaurant websites are meant to be found; the console, the platform admin, the
@@ -8,7 +9,7 @@ import type { MetadataRoute } from "next";
 export const PRIVATE_PATHS = ["/restaurant", "/admin", "/account", "/api"] as const;
 
 export default function robots(): MetadataRoute.Robots {
-  const base = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
+  const base = (appUrl() ?? "").replace(/\/$/, "");
   return {
     rules: [{ userAgent: "*", allow: "/", disallow: [...PRIVATE_PATHS] }],
     ...(base === "" ? {} : { sitemap: `${base}/sitemap.xml`, host: base }),

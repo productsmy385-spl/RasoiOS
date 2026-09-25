@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { listPublicSiteSlugs } from "@/lib/data/public-restaurant";
 import { canonicalPublicUrl } from "@/lib/tenancy/request";
+import { appUrl } from "@/lib/env";
 
 /**
  * LD-PUB-03 sitemap (S1-P09-T005). Lists the public website of every ACTIVE tenant whose site is published, and
@@ -21,7 +22,7 @@ import { canonicalPublicUrl } from "@/lib/tenancy/request";
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
+  const base = (appUrl() ?? "").replace(/\/$/, "");
   const sites = await listPublicSiteSlugs();
 
   return sites.flatMap((site) => {

@@ -8,6 +8,7 @@ import { prisma } from "@/lib/db/prisma";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { now } from "@/lib/time";
+import { appUrl } from "@/lib/env";
 
 /**
  * Social sharing services (S1-P04-T007 interim retrofit of LD-SOC-01, SA-SOC-01…05; rebuilt in S1-P20).
@@ -58,7 +59,7 @@ const SOCIAL_TRANSITIONS: Readonly<Record<SocialPostStatus, Partial<Record<Socia
  * lib/env.ts) — never from client input (TC-SOC-001).
  */
 export function publicMenuUrl(slug: string): string {
-  const base = process.env.NEXT_PUBLIC_APP_URL;
+  const base = appUrl();
   if (!base || !/^https?:\/\/[^\s]+$/.test(base)) {
     // Server misconfiguration, not a user error: surfaces as INTERNAL with a request id.
     throw new Error("NEXT_PUBLIC_APP_URL is not configured");

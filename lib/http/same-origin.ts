@@ -2,6 +2,7 @@ import "server-only";
 import type { NextRequest } from "next/server";
 import { ForbiddenError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
+import { appUrl } from "@/lib/env";
 
 /**
  * SC-CSRF-02 / RASOIOS-ADR-011 §4 — cookie-authenticated, state-changing Route Handlers must prove the request came
@@ -24,7 +25,8 @@ export function assertSameOrigin(request: NextRequest, requestId: string): void 
 
 function configuredOrigin(): string | null {
   try {
-    return process.env.NEXT_PUBLIC_APP_URL ? new URL(process.env.NEXT_PUBLIC_APP_URL).origin : null;
+    const configured = appUrl();
+    return configured ? new URL(configured).origin : null;
   } catch {
     return null;
   }

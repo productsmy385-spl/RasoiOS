@@ -53,6 +53,7 @@ import {
   type TenantListQueryInput,
   type UpdateTenantData,
 } from "@/lib/validation/platform";
+import { appUrl } from "@/lib/env";
 
 /**
  * Platform tenant services (S1-P06-T001; api.md LD-ADM-01…03, SA-ADM-01…06; security.md §3.3 rows 1–6, §7).
@@ -106,7 +107,7 @@ export async function consumePlatformMutation(ctx: PlatformContext): Promise<voi
 
 /** Absolute sign-up URL for Clerk invitations, built only from server configuration (never from input). */
 function invitationRedirectUrl(): string {
-  const base = process.env.NEXT_PUBLIC_APP_URL;
+  const base = appUrl();
   if (!base || !/^https?:\/\/[^\s]+$/.test(base)) {
     // Server misconfiguration, not a user error: surfaces as INTERNAL with a request id, before anything is written.
     throw new Error("NEXT_PUBLIC_APP_URL is not configured");
