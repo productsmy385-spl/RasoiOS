@@ -53,23 +53,26 @@ Generated once from the four owner-supplied hues (ADR-013 §1) in OKLCH — hue 
 chroma tapered and gamut-fitted so no step clips. Raw hues appear only at the 500 step. These are the only colours in
 the platform theme; anything else fails `tests/static/design-system.test.ts`.
 
-| Step | Primary (green) | Secondary (blue) | Tertiary / danger (red) | Accent (aqua) | Surface (near-black) |
+Re-derived for the ADR-018 hues (2026-09-25) by holding each step's WCAG relative luminance and changing only hue, so
+every pair in §2.3 still meets AA by construction. Secondary came back unchanged; the visible move is the accent.
+
+| Step | Primary (green) | Secondary (blue) | Tertiary / danger (red) | Accent (cyan) | Surface (near-black) |
 |---|---|---|---|---|---|
-| 50 | `#E2FFDB` | `#F1F5FF` | `#FEF2F0` | `#DBFFF0` | `#F1F6F4` |
-| 100 | `#C0FBB2` | `#DEE8FE` | `#FFDFDB` | `#B3FADE` | `#DEE8E3` |
-| 200 | `#94EB7F` | `#BDD0FF` | `#FFBFB7` | `#7BEAC3` | `#BFCEC7` |
-| 300 | `#64D644` | `#98B5FF` | `#FF968B` | `#29D5A5` | `#93A69D` |
-| 400 | `#40BD06` | `#7498FF` | `#FE655B` | `#0DB98E` | `#6B8077` |
-| 500 | `#35A005` | `#5179FF` | `#F80F23` **(brand `#F80E23`)** | `#049E78` | `#4A5F57` |
-| 600 | `#298500` | `#3253FF` | `#D0051A` | `#088263` | `#33453E` |
-| 700 | `#1F6701` | `#2237D6` | `#A30111` | `#04654C` | `#25352F` |
+| 50 | `#E2FFDC` | `#F1F5FF` | `#FEF2F0` | `#E5FBFF` | `#F1F6F4` |
+| 100 | `#BFFBB3` | `#DEE8FE` | `#FFDFDB` | `#C0F4FF` | `#DEE8E3` |
+| 200 | `#91EB81` | `#BDD0FF` | `#FFBFB7` | `#66E7FE` | `#BFCEC7` |
+| 300 | `#5FD648` | `#98B5FF` | `#FF968C` | `#00CFEA` | `#93A69D` |
+| 400 | `#38BD15` | `#7498FF` | `#FE655C` | `#00B3CB` | `#6B8077` |
+| 500 | `#2FA010` | `#5179FF` | `#F80F25` **(brand `#EF0E23`)** | `#0099AE` | `#4A5F57` |
+| 600 | `#248508` | `#3253FF` | `#D0051B` | `#007E8F` | `#33453E` |
+| 700 | `#1B6707` | `#2237D6` | `#A30112` | `#00626F` | `#25352F` |
 | 750 | — | — | — | — | `#1D2A26` |
-| 800 | `#144A02` | `#1624A1` | `#78010A` | `#034936` | `#16211E` |
+| 800 | `#124A04` | `#1624A1` | `#78010B` | `#004751` | `#16211E` |
 | 850 | — | — | — | — | `#111917` |
-| 900 | `#082D00` | `#090F6B` | `#4B0003` | `#002C1F` | `#0B1110` |
+| 900 | `#072D01` | `#090F6B` | `#4B0004` | `#002A31` | `#0B1110` |
 | 950 | — | — | — | — | `#070B0A` |
 
-The brand hues `#4FE012`, `#201EEB` and `#0CFFC4` are the *inputs* to the ramp; their in-gamut 400–500 steps are what
+The brand hues `#41E012`, `#2015EB` and `#0CD9F5` are the *inputs* to the ramp; their in-gamut 400–500 steps are what
 the UI paints, because the raw values fail text contrast and vibrate at full-surface scale. A tenant's own theme
 colours (ADR-013 §6) are separate and apply only to that restaurant's public site.
 
@@ -87,15 +90,15 @@ on the public page.
 | `--border-strong` | surface-600 `#33453E` | surface-300 `#93A69D` |
 | `--text` | surface-100 `#DEE8E3` (15.21:1) | surface-900 `#0B1110` (17.45:1) |
 | `--text-muted` | surface-300 `#93A69D` (7.43:1) | surface-500 `#4A5F57` |
-| `--primary` / `--on-primary` | primary-400 `#40BD06` / surface-950 `#070B0A` (8.01:1) | primary-600 `#298500` / `#FFFFFF` (4.72:1) |
-| `--primary-hover` | primary-300 `#64D644` | primary-700 `#1F6701` |
+| `--primary` / `--on-primary` | primary-400 `#38BD15` / surface-950 `#070B0A` (7.97:1) | primary-600 `#248508` / `#FFFFFF` (4.74:1) |
+| `--primary-hover` | primary-300 `#5FD648` | primary-700 `#1B6707` |
 | `--secondary` / `--on-secondary` | secondary-500 `#5179FF` / surface-950 (5.21:1) | secondary-600 `#3253FF` / `#FFFFFF` (5.50:1) |
 | `--danger` / `--on-danger` | tertiary-500 `#F80F23` / surface-950 (4.79:1) | tertiary-600 `#D0051A` / `#FFFFFF` (5.65:1) |
-| `--accent` / `--on-accent` | accent-400 `#0DB98E` / surface-950 (7.87:1) | accent-600 `#088263` / `#FFFFFF` (4.79:1) |
-| `--success` | accent-400 `#0DB98E` | accent-700 `#04654C` (accent-600 is 4.39:1 as text on surface-50 — below AA) |
+| `--accent` / `--on-accent` | accent-400 `#00B3CB` / surface-950 (7.83:1) | accent-600 `#007E8F` / `#FFFFFF` (4.79:1) |
+| `--success` | accent-400 `#00B3CB` | accent-700 `#00626F` (accent-600 is below AA as text on surface-50) |
 | `--warning` | `#F5B301` (10.28:1 on surface-900) | `#8A5A00` |
-| `--text-accent` (coloured text) | primary-300 `#64D644` (10.20:1) | primary-700 `#1F6701` |
-| `--focus-ring` | accent-300 `#29D5A5`, 2 px + 2 px offset (10.12:1) | secondary-600, 2 px + 2 px offset |
+| `--text-accent` (coloured text) | primary-300 `#5FD648` (10.16:1) | primary-700 `#1B6707` |
+| `--focus-ring` | accent-300 `#00CFEA`, 2 px + 2 px offset (10.09:1) | secondary-600, 2 px + 2 px offset |
 
 ### 2.3 Verified contrast (WCAG 2.1, computed 2026-09-23 from the scales above)
 
@@ -110,7 +113,7 @@ on the public page.
 | Dark on accent-400 / white on accent-600 | 7.87 / 4.79 | AAA / AA |
 | primary-300 text on canvas | 10.20 | AAA |
 | secondary-300 / tertiary-300 / accent-300 text on canvas | 9.43 / 9.06 / 10.12 | AAA |
-| Raw brand `#4FE012` with white text | 1.75 | **Fails** — never a text background |
+| Raw brand `#41E012` with white text | 1.77 | **Fails** — never a text background |
 | Border `#25352F` on canvas | 1.48 | Decorative only; interactive boundaries use `--border-strong` or the control fill + focus ring |
 
 Every pair in this table is asserted in `tests/unit/ui-primitives.test.tsx` (TC-DS-009) and re-checked for a tenant

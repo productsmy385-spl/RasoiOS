@@ -8,19 +8,26 @@
  * step of each scale (design.md §2.1–§2.3).
  */
 
-/** Owner-supplied brand hues (ADR-013 §1). Reference values: not used as UI colours. */
-export const BRAND_HUES = { primary: "#4FE012", secondary: "#201EEB", tertiary: "#F80E23", accent: "#0CFFC4" } as const;
+/**
+ * Owner-supplied brand hues (ADR-018, 2026-09-25; supersedes the ADR-013 §1 set). Reference values: not painted.
+ *
+ * Each scale below was re-derived from these by keeping every step's WCAG relative luminance and changing only the
+ * hue, so the contrast pairs TC-THEME-001 checks hold by construction rather than by re-tuning. `secondary` came back
+ * byte-identical and `tertiary` moved by one 8-bit step; the visible change is `accent`, which moves from an
+ * aqua-green to a true cyan — and with it `success`, which resolves to the accent scale.
+ */
+export const BRAND_HUES = { primary: "#41E012", secondary: "#2015EB", tertiary: "#EF0E23", accent: "#0CD9F5" } as const;
 
 /** design.md §2.1 tonal scales — the only colours in the platform theme. */
 export const palette = {
   /** Primary green: primary actions, active navigation, success-leaning accents. */
-  primary: { 50: "#E2FFDB", 100: "#C0FBB2", 200: "#94EB7F", 300: "#64D644", 400: "#40BD06", 500: "#35A005", 600: "#298500", 700: "#1F6701", 800: "#144A02", 900: "#082D00" },
+  primary: { 50: "#E2FFDC", 100: "#BFFBB3", 200: "#91EB81", 300: "#5FD648", 400: "#38BD15", 500: "#2FA010", 600: "#248508", 700: "#1B6707", 800: "#124A04", 900: "#072D01" },
   /** Secondary blue: secondary actions, informational accents, links. */
   secondary: { 50: "#F1F5FF", 100: "#DEE8FE", 200: "#BDD0FF", 300: "#98B5FF", 400: "#7498FF", 500: "#5179FF", 600: "#3253FF", 700: "#2237D6", 800: "#1624A1", 900: "#090F6B" },
   /** Tertiary red: destructive actions, errors, urgent kitchen states. Also exposed as `danger`. */
-  tertiary: { 50: "#FEF2F0", 100: "#FFDFDB", 200: "#FFBFB7", 300: "#FF968B", 400: "#FE655B", 500: "#F80F23", 600: "#D0051A", 700: "#A30111", 800: "#78010A", 900: "#4B0003" },
-  /** Neutral accent aqua: highlights, live indicators, success, data emphasis. */
-  accent: { 50: "#DBFFF0", 100: "#B3FADE", 200: "#7BEAC3", 300: "#29D5A5", 400: "#0DB98E", 500: "#049E78", 600: "#088263", 700: "#04654C", 800: "#034936", 900: "#002C1F" },
+  tertiary: { 50: "#FEF2F0", 100: "#FFDFDB", 200: "#FFBFB7", 300: "#FF968C", 400: "#FE655C", 500: "#F80F25", 600: "#D0051B", 700: "#A30112", 800: "#78010B", 900: "#4B0004" },
+  /** Neutral accent cyan: highlights, live indicators, success, data emphasis. */
+  accent: { 50: "#E5FBFF", 100: "#C0F4FF", 200: "#66E7FE", 300: "#00CFEA", 400: "#00B3CB", 500: "#0099AE", 600: "#007E8F", 700: "#00626F", 800: "#004751", 900: "#002A31" },
   /** Near-black, desaturated surface ramp so the saturated hues read as accents. */
   surface: {
     50: "#F1F6F4",

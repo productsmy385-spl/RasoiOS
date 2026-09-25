@@ -21,8 +21,8 @@ This repository is governed by the **Knowledge Base** in `knowledge/`. The Knowl
 - **ORM**: Prisma ORM
 - **Deployment**: Railway
 - **Styling**: Tailwind CSS, CSS Custom Variables
-- **Brand Tokens** (v2 — RASOIOS-ADR-013, 2026-09-23; replaces the amber/emerald v1 palette):
-  - Primary: `#4FE012` · Secondary: `#201EEB` · Tertiary / Danger: `#F80E23` · Neutral accent: `#0CFFC4`
+- **Brand Tokens** (v2 — RASOIOS-ADR-013, 2026-09-23; hues revised by RASOIOS-ADR-018, 2026-09-25):
+  - Primary: `#41E012` · Secondary: `#2015EB` · Tertiary / Danger: `#EF0E23` · Neutral accent: `#0CD9F5`
   - Each hue is a 50–900 tonal scale; raw hues are accents only, never page-wide fills. Surfaces are near-black and
     desaturated. Every colour is a semantic token; WCAG 2.1 AA contrast is enforced by tests.
   - Visual language: vibrant glassmorphism in three levels (navigation, cards/panels, overlays) — never nested,

@@ -22,7 +22,7 @@ related_decisions: []
 
 
 Direction (**Brand v2**, RASOIOS-ADR-013, 2026-09-23): vibrant glassmorphism on near-black surfaces — premium, energetic, restaurant-first.
-Brand hues: Primary `#4FE012`, Secondary `#201EEB`, Tertiary/danger `#F80E23`, Accent `#0CFFC4`, each rendered through a
+Brand hues (ADR-018): Primary `#41E012`, Secondary `#2015EB`, Tertiary/danger `#EF0E23`, Accent `#0CD9F5`, each rendered through a
 contrast-checked tonal scale (the raw hues are ramp inputs, not paint). Typography: Playfair Display (display) and
 Plus Jakarta Sans (UI). Icons: Lucide only, with per-domain hues. Navigation: glass header on desktop for both
 consoles — no sidebar — and a glass bottom bar below 768 px. Public restaurant sites carry the tenant’s own theme.

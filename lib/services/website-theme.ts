@@ -63,8 +63,10 @@ export const SURFACE_HEX: Readonly<Record<WebsiteSurfaceModeName, string>> = { D
  */
 export const THEME_PRESETS: Readonly<Record<Exclude<WebsiteThemePresetName, "CUSTOM">, Readonly<Record<WebsiteSurfaceModeName, Palette>>>> = {
   PLATFORM: {
-    DARK: { primary: "#4FE012", secondary: "#6E6BFF", accent: "#0CFFC4", gradientFrom: "#201EEB", gradientTo: "#7A1FA2" },
-    LIGHT: { primary: "#2E7D0A", secondary: "#201EEB", accent: "#00695C", gradientFrom: "#201EEB", gradientTo: "#7A1FA2" },
+    // ADR-018 hues. Measured on the website surfaces, not the console's: 11.13:1 and 11.47:1 on DARK #0B0B0F;
+    // 4.93:1, 8.43:1 and 6.71:1 on LIGHT #FBF9F5.
+    DARK: { primary: "#41E012", secondary: "#6E6BFF", accent: "#0CD9F5", gradientFrom: "#2015EB", gradientTo: "#7A1FA2" },
+    LIGHT: { primary: "#2E7D0A", secondary: "#2015EB", accent: "#00626F", gradientFrom: "#2015EB", gradientTo: "#7A1FA2" },
   },
   CITRUS: {
     DARK: { primary: "#FFB020", secondary: "#FF7A45", accent: "#FFE066", gradientFrom: "#B34700", gradientTo: "#8A2B00" },

@@ -214,7 +214,7 @@ Priority: **MUST** (release-blocking), **SHOULD** (planned in SLICE-01, may slip
 
 | ID | Requirement | Priority | Source | Acceptance criteria |
 |---|---|---|---|---|
-| REQ-DS-001 | Brand v2 tokens (#4FE012, #201EEB, #F80E23, #0CFFC4) as contrast-checked tonal scales on near-black surfaces, exposed as semantic tokens (ADR-013) | MUST | B§21, IB§28, ADR-013 | design.md §2 implemented; TC-DS-001, TC-DS-009 pass |
+| REQ-DS-001 | Brand v2 tokens (#41E012, #2015EB, #EF0E23, #0CD9F5 — ADR-018) as contrast-checked tonal scales on near-black surfaces, exposed as semantic tokens (ADR-013) | MUST | B§21, IB§28, ADR-013 | design.md §2 implemented; TC-DS-001, TC-DS-009 pass |
 | REQ-DS-002 | Typography: Playfair Display for display, Plus Jakarta Sans for UI, defined hierarchy | MUST | B§21, IB§28 | DCA-01 passes |
 | REQ-DS-003 | One icon system (Lucide) with standard sizes; no emoji or mixed icon packs | MUST | IB§31–33 | DCA-02, VQA-05 pass |
 | REQ-DS-004 | 4/8 px spacing scale and a consistent layout grid; no arbitrary spacing | MUST | IB§29–30 | TC-DS-002 static test passes |

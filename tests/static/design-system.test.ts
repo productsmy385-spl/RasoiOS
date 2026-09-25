@@ -30,10 +30,11 @@ describe("TC-DS-001 Tailwind theme = design tokens", () => {
 
   it("the Brand v2 values are present on their design.md §2.1 steps", () => {
     const colors = resolved.theme.colors as unknown as Record<string, Record<string, string>>;
-    expect(colors.primary["400"]).toBe("#40BD06");
+    // ADR-018 re-derived these from the new hues by holding each step's luminance; secondary came back unchanged.
+    expect(colors.primary["400"]).toBe("#38BD15");
     expect(colors.secondary["500"]).toBe("#5179FF");
-    expect(colors.tertiary["500"]).toBe("#F80F23");
-    expect(colors.accent["400"]).toBe("#0DB98E");
+    expect(colors.tertiary["500"]).toBe("#F80F25");
+    expect(colors.accent["400"]).toBe("#00B3CB");
     expect(colors.surface["900"]).toBe("#0B1110");
     expect(colors.surface["950"]).toBe("#070B0A");
     expect(colors.surface["750"]).toBe("#1D2A26");

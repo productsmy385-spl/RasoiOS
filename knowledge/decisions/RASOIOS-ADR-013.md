@@ -40,7 +40,10 @@ handover — restaurants customising their own website's colours, branding and c
 Four brand hues, each with a 50–900 tonal scale generated once and stored as tokens; the raw hues are used only as
 the 500/600 step, never as page-wide fills:
 
-| Role | Hue | Use |
+> **Superseded by RASOIOS-ADR-018 (2026-09-25).** The four hues below were replaced by `#41E012`, `#2015EB`,
+> `#EF0E23` and `#0CD9F5`, and the ramps re-derived at constant luminance. The rest of this ADR still stands.
+
+| Role | Hue (superseded) | Use |
 |---|---|---|
 | Primary | `#4FE012` | primary actions, active navigation, success-leaning accents |
 | Secondary | `#201EEB` | secondary actions, informational accents, links |

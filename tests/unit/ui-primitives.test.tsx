@@ -114,18 +114,18 @@ describe("TC-DS-009 contrast (design.md §2.3)", () => {
   it.each([
     ["body text on canvas", dark.text, dark.surface, 15.21],
     ["muted text on canvas", dark["text-muted"], dark.surface, 7.43],
-    ["console primary button", dark["on-primary"], dark.primary, 8.01],
-    ["public primary button", light["on-primary"], light.primary, 4.72],
+    ["console primary button", dark["on-primary"], dark.primary, 7.97],
+    ["public primary button", light["on-primary"], light.primary, 4.74],
     ["console secondary button", dark["on-secondary"], dark.secondary, 5.21],
     ["public secondary button", light["on-secondary"], light.secondary, 5.5],
     ["console destructive button", dark["on-danger"], dark.danger, 4.79],
     ["public destructive button", light["on-danger"], light.danger, 5.65],
-    ["console accent fill", dark["on-accent"], dark.accent, 7.87],
+    ["console accent fill", dark["on-accent"], dark.accent, 7.83],
     ["public accent fill", light["on-accent"], light.accent, 4.79],
-    ["accent text on canvas", dark["text-accent"], dark.surface, 10.2],
+    ["accent text on canvas", dark["text-accent"], dark.surface, 10.16],
     ["info text on canvas", dark["text-info"], dark.surface, 9.43],
-    ["danger text on canvas", dark["text-danger"], dark.surface, 9.06],
-    ["success text on canvas", dark["text-success"], dark.surface, 10.12],
+    ["danger text on canvas", dark["text-danger"], dark.surface, 9.07],
+    ["success text on canvas", dark["text-success"], dark.surface, 10.09],
     ["light body text on canvas", light.text, light.surface, 17.45],
   ])("%s is %s on %s = %d:1", (_name, foreground, background, expected) => {
     expect(contrastRatio(foreground, background)).toBe(expected);
@@ -164,8 +164,8 @@ describe("TC-DS-009 contrast (design.md §2.3)", () => {
   });
 
   it("the raw brand hues are never a text background — which is why the UI paints the ramp instead", () => {
-    // design.md §2.3 records 2.06:1 here; recomputed it is 1.75:1. Either way it fails AA by a wide margin.
-    expect(contrastRatio("#FFFFFF", BRAND_HUES.primary)).toBe(1.75);
+    // design.md §2.3 records 2.06:1 for the ADR-013 hue; the ADR-018 hue recomputes to 1.77:1. Either fails AA widely.
+    expect(contrastRatio("#FFFFFF", BRAND_HUES.primary)).toBe(1.77);
     expect(contrastRatio("#FFFFFF", BRAND_HUES.primary)).toBeLessThan(4.5);
     expect(contrastRatio(dark["on-primary"], BRAND_HUES.accent)).toBeGreaterThanOrEqual(4.5);
   });
