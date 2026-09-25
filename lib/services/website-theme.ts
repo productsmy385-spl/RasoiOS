@@ -17,6 +17,7 @@ import {
 } from "@/lib/data/website";
 import { ConflictError, ValidationError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
+import { assertOwnedImageUrls, imageUrlsBeforeSave, releaseUnusedImages } from "@/lib/services/media";
 import { getPublicRestaurantBySlug, type PublicRestaurantData } from "@/lib/services/public-restaurant";
 import {
   ALWAYS_ENABLED_SECTION,
@@ -390,7 +391,11 @@ export async function updateTheme(ctx: TenantContext, input: UpdateWebsiteThemeD
 
 /** SA-WEB-02 — tagline, hero and site icon, social and map links (`restaurant.website_updated`). */
 export async function updateIdentity(ctx: TenantContext, input: UpdateWebsiteIdentityData): Promise<WebsiteSettingsView> {
+  // Uploaded images must be this tenant's own (SC-FILE-02); the ones replaced are released after the save (ADR-017 §5).
+  await assertOwnedImageUrls(ctx, { heroImageUrl: input.heroImageUrl, faviconUrl: input.faviconUrl });
+  const previous = await imageUrlsBeforeSave(ctx, { kind: "restaurant" });
   const config = await updateWebsiteIdentity(ctx, input as Partial<WebsiteIdentityRow>);
+  await releaseUnusedImages(ctx, previous);
   await revalidatePublicSite(ctx);
   return toView(ctx, config);
 }
@@ -406,6 +411,8 @@ export class HeroRequiredError extends ConflictError {
 export async function saveSections(ctx: TenantContext, input: SaveWebsiteSectionsData): Promise<WebsiteSettingsView> {
   const hero = input.sections.find((section) => section.key === ALWAYS_ENABLED_SECTION);
   if (hero !== undefined && hero.enabled !== true) throw new HeroRequiredError();
+  await assertOwnedImageUrls(ctx, Object.fromEntries(input.sections.map((section, index) => [`sections.${index}.imageUrl`, section.imageUrl])));
+  const previous = await imageUrlsBeforeSave(ctx, { kind: "sections" });
 
   const config = await saveWebsiteSections(
     ctx,
@@ -420,6 +427,7 @@ export async function saveSections(ctx: TenantContext, input: SaveWebsiteSection
       ctaHref: section.ctaHref ?? null,
     })),
   );
+  await releaseUnusedImages(ctx, previous);
   await revalidatePublicSite(ctx);
   return toView(ctx, config);
 }

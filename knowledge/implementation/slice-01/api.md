@@ -440,6 +440,10 @@ All platform endpoints: **AuthZ** `USER.platform_role = SUPER_ADMIN` via `requir
 - **Request:** `{ purpose, contentType, byteSize }` · **Validation:** type ∈ jpeg/png/webp; ≤5 MB · **CSRF:** `assertSameOrigin` (SC-CSRF-02)
 - **Response:** `{ assetId, uploadUrl (signed, 5 min), fields }` · **Audit:** none until confirmed · **Rate limit:** 30/hour per user · **Tests:** TC-SEC-016, TC-SEC-017, TI-058
 
+> **2026-09-25 — superseded by RASOIOS-ADR-017.** RH-MEDIA-01 is now `POST /api/v1/media/uploads`, multipart `{ purpose, file }`, proxied to ImageKit; 201 `{ asset }` after ImageKit confirms and the row commits. Permission by purpose (`website:update` / `menu:manage`), same-origin check, 30 uploads/hour/user. No signed URL and no confirm step — SA-MEDIA-01 below is not implemented.
+> **RH-MEDIA-02** — `DELETE /api/v1/media/{assetId}`: discard an unused upload of the caller's tenant; 404 for unknown and other tenants' ids, 409 `IMAGE_IN_USE`, audit `media.deleted`.
+> Saves that store an ImageKit URL (SA-RST-02, SA-WEB-02/03, SA-MENU-06/07) return 422 `IMAGE_NOT_OWNED` unless it is a READY asset of the caller's tenant.
+
 #### SA-MEDIA-01 — confirmMediaUploadAction (gated Q-009)
 - **Permission:** as RH-MEDIA-01 · **Request:** `{ assetId }` · **Effect:** server fetches object from **own bucket by key** (not user URL), sniffs magic bytes, re-encodes, strips EXIF, sets READY
 - **Errors:** 422 `INVALID_IMAGE` · **Audit:** `media.uploaded` · **Tests:** TC-SEC-016, ADV-020

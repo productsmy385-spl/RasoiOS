@@ -7,11 +7,13 @@ import { Icon } from "@/components/ui/icon";
 import { Tabs } from "@/components/ui/tabs";
 import { SortableList } from "@/components/ui/sortable-list";
 import { Form, FormField, SubmitButton } from "@/components/ui/form";
+import { ImageUploader } from "@/components/ui/image-uploader";
 import { RadioGroup, Switch, TextArea, TextField, TextInput } from "@/components/ui/inputs";
 import { cn } from "@/lib/ui/cn";
 import type { ActionResult } from "@/lib/http/action";
 import type { WebsiteSectionKeyName, WebsiteSurfaceModeName, WebsiteThemePresetName } from "@/lib/validation/website";
 import { SitePreview, type PreviewPalette } from "./site-preview";
+import { updateBrandingAction } from "../settings/website-actions";
 import { saveWebsiteSectionsAction, updateWebsiteIdentityAction, updateWebsiteThemeAction } from "./actions";
 
 /**
@@ -55,6 +57,8 @@ export type EditorSettings = {
   resolvedTheme: { primary: string; secondary: string; accent: string; gradientFrom: string; gradientTo: string; surface: string; onSurface: string };
   identity: {
     tagline: string | null;
+    logoUrl: string | null;
+    coverImageUrl: string | null;
     heroImageUrl: string | null;
     faviconUrl: string | null;
     instagramUrl: string | null;
@@ -172,8 +176,8 @@ export function WebsiteEditor({ settings, reference, site }: { settings: EditorS
   const [sections, setSections] = React.useState<EditorSection[]>(settings.sections);
 
   // The forms submit what is on screen, not what the browser serialised, because the section order lives in state.
-  const latest = React.useRef({ colours, identity, sections });
-  latest.current = { colours, identity, sections };
+  const latest = React.useRef({ colours, identity, sections, view });
+  latest.current = { colours, identity, sections, view };
 
   const disabled = !view.canEdit;
   const palette = draftPalette(colours, reference);
@@ -205,6 +209,17 @@ export function WebsiteEditor({ settings, reference, site }: { settings: EditorS
   const identityAction = (fields: Array<keyof EditorSettings["identity"]>) => (): Promise<ActionResult<EditorSettings>> => {
     const draft = latest.current.identity;
     return saved(updateWebsiteIdentityAction(Object.fromEntries(fields.map((field) => [field, draft[field] ?? ""]))));
+  };
+
+  // Logo and cover belong to the restaurant's branding (SA-RST-02), saved by their own action; the result is merged
+  // into the editor's saved state so the preview and the dirty check see what was stored.
+  const brandingAction = async (): Promise<ActionResult<EditorSettings>> => {
+    const draft = latest.current.identity;
+    const result = await updateBrandingAction({ logoUrl: draft.logoUrl ?? "", coverImageUrl: draft.coverImageUrl ?? "" });
+    if (!result.ok) return result;
+    const stored = result.data as { logoUrl: string | null; coverImageUrl: string | null };
+    const base = latest.current.view;
+    return { ok: true, data: { ...base, identity: { ...base.identity, logoUrl: stored.logoUrl, coverImageUrl: stored.coverImageUrl } } };
   };
 
   const sectionsAction = (): Promise<ActionResult<EditorSettings>> =>
@@ -346,44 +361,86 @@ export function WebsiteEditor({ settings, reference, site }: { settings: EditorS
       label: "Branding",
       icon: Type,
       content: (
-        <Form action={identityAction(["tagline", "heroImageUrl", "faviconUrl"])} onSuccess={applySaved}>
-          <Card>
-            <CardHeader>
-              <CardTitle>Branding</CardTitle>
-              <CardDescription>The line under your name, the photograph at the top of your site and the icon browsers show in the tab.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <TextField
-                name="tagline"
-                label="Tagline"
-                maxLength={160}
-                disabled={disabled}
-                value={identity.tagline ?? ""}
-                onChange={(event) => setIdentity((current) => ({ ...current, tagline: event.target.value }))}
-              />
-              <TextField
-                name="heroImageUrl"
-                label="Hero image URL"
-                help="An https link on a host your operator has allowed. Leave empty to use your cover photo."
-                disabled={disabled}
-                value={identity.heroImageUrl ?? ""}
-                onChange={(event) => setIdentity((current) => ({ ...current, heroImageUrl: event.target.value }))}
-              />
-              <TextField
-                name="faviconUrl"
-                label="Site icon URL"
-                disabled={disabled}
-                value={identity.faviconUrl ?? ""}
-                onChange={(event) => setIdentity((current) => ({ ...current, faviconUrl: event.target.value }))}
-              />
-              {!disabled && (
-                <div className="flex justify-end">
-                  <SubmitButton>Save branding</SubmitButton>
+        <div className="flex flex-col gap-4">
+          <Form action={brandingAction} onSuccess={applySaved}>
+            <Card>
+              <CardHeader>
+                <CardTitle>Logo and cover</CardTitle>
+                <CardDescription>Your logo appears in the website header; the cover photo is used when no hero image is set.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+                  <ImageUploader
+                    name="logoUrl"
+                    label="Logo"
+                    purpose="LOGO"
+                    shape="square"
+                    disabled={disabled}
+                    value={identity.logoUrl ?? ""}
+                    onChange={(url) => setIdentity((current) => ({ ...current, logoUrl: url }))}
+                    help="A square image works best, at least 256 × 256 pixels."
+                  />
+                  <ImageUploader
+                    name="coverImageUrl"
+                    label="Cover photo"
+                    purpose="COVER"
+                    disabled={disabled}
+                    value={identity.coverImageUrl ?? ""}
+                    onChange={(url) => setIdentity((current) => ({ ...current, coverImageUrl: url }))}
+                    help="A wide photo of your food or dining room, at least 1600 pixels across."
+                  />
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </Form>
+                {!disabled && (
+                  <div className="flex justify-end">
+                    <SubmitButton>Save logo and cover</SubmitButton>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </Form>
+          <Form action={identityAction(["tagline", "heroImageUrl", "faviconUrl"])} onSuccess={applySaved}>
+            <Card>
+              <CardHeader>
+                <CardTitle>Branding</CardTitle>
+                <CardDescription>The line under your name, the photograph at the top of your site and the icon browsers show in the tab.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <TextField
+                  name="tagline"
+                  label="Tagline"
+                  maxLength={160}
+                  disabled={disabled}
+                  value={identity.tagline ?? ""}
+                  onChange={(event) => setIdentity((current) => ({ ...current, tagline: event.target.value }))}
+                />
+                <ImageUploader
+                  name="heroImageUrl"
+                  label="Hero image"
+                  purpose="HERO"
+                  help="The large photograph at the top of your website. Leave empty to use your cover photo."
+                  disabled={disabled}
+                  value={identity.heroImageUrl ?? ""}
+                  onChange={(url) => setIdentity((current) => ({ ...current, heroImageUrl: url }))}
+                />
+                <ImageUploader
+                  name="faviconUrl"
+                  label="Site icon"
+                  purpose="FAVICON"
+                  shape="square"
+                  help="The small icon browsers show in the tab. A square image, at least 64 × 64 pixels."
+                  disabled={disabled}
+                  value={identity.faviconUrl ?? ""}
+                  onChange={(url) => setIdentity((current) => ({ ...current, faviconUrl: url }))}
+                />
+                {!disabled && (
+                  <div className="flex justify-end">
+                    <SubmitButton>Save branding</SubmitButton>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </Form>
+        </div>
       ),
     },
     {
@@ -565,12 +622,13 @@ function SectionEditor({
           onChange={(event) => onChange({ ctaHref: event.target.value })}
         />
       </div>
-      <TextField
+      <ImageUploader
         name={field("imageUrl")}
-        label="Section image URL"
+        label="Section image"
+        purpose="WEBSITE_SECTION"
         disabled={disabled}
         value={section.imageUrl ?? ""}
-        onChange={(event) => onChange({ imageUrl: event.target.value })}
+        onChange={(url) => onChange({ imageUrl: url })}
       />
     </div>
   );

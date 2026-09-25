@@ -289,7 +289,7 @@ Status for every control: **PLANNED**. "Verified by" names the test(s) that prov
 | SC-HDR-02 | Content-Security-Policy compatible with Clerk and self-hosted fonts | secure headers, XSS | `next.config.ts`/middleware | TC-SEC-015 |
 | SC-HDR-03 | `Cache-Control: no-store` on authenticated pages and APIs | cache | route config | TC-SEC-006 |
 | SC-FILE-01 | Uploads (Q-009): ≤5 MB, magic-byte type check, jpeg/png/webp only, re-encode, strip EXIF, reject SVG | file uploads, malicious file | `lib/media/*` | TC-SEC-016, ADV-020 |
-| SC-FILE-02 | Tenant-prefixed storage keys; short-lived signed URLs; private bucket | file uploads | `lib/media/*` | TC-SEC-017 |
+| SC-FILE-02 | Tenant-prefixed storage keys; short-lived signed URLs; private bucket. **ADR-017 (2026-09-25):** ImageKit folder `/rasoios/restaurants/{tenantId}/…` built server-side; public CDN files (public-site images only); an ImageKit URL can be saved only if it is a READY asset of the caller's tenant | file uploads | `lib/media/*`, `lib/services/media.ts` | TC-SEC-017 |
 | SC-WH-01 | Clerk webhook Svix signature + 5-minute timestamp tolerance | webhook verification | `app/api/webhooks/clerk/route.ts` | TC-AUTH-016, ADV-022 |
 | SC-WH-02 | Idempotent webhook handlers; unknown event types ignored | webhook | same | TC-AUTH-017 |
 | SC-PRINT-01 | Per-agent bearer token, 256-bit, SHA-256 at rest, shown once | agent authentication | `lib/services/print-agents.ts` | TC-AGENT-001 |

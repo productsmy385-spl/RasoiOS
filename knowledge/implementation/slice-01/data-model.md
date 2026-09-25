@@ -2052,6 +2052,14 @@ No `id`. PK `(tenant_id, counter_type, business_date)`.
 ### E28 — MEDIA_ASSET *(new, decision-gated by Q-009)* · table `media_assets`
 
 Created only if Q-009 approves uploads. Otherwise image fields accept allow-listed HTTPS URLs only.
+
+> **Implemented 2026-09-25 (RASOIOS-ADR-017, migration `0004_media_assets`)** with ImageKit, and different from the
+> table below: `purpose` is LOGO / COVER / HERO / FAVICON / WEBSITE_SECTION / MENU_ITEM; `status` is READY / DELETED
+> only (rows are written after ImageKit stores the file); added `provider_file_id` (ImageKit fileId, unique), `url`
+> (unique), `original_filename`, `deleted_at`; `storage_key` is `storage_path` =
+> `/rasoios/restaurants/{tenantId}/{folder}/{uuid}.{ext}`. CHECKs: type ∈ jpeg/png/webp, 1 B–5 MB, 1–4096 px, https URL,
+> `deleted_at` set iff DELETED. Image columns (`logo_url`, `image_url`, …) keep storing the URL; the asset row is the
+> ownership record [fact: `prisma/schema.prisma` model MediaAsset].
 Standard columns: `id`, `tenant_id`, `created_at`, `updated_at`.
 
 | Field | Type | Req | Default | Meaning | Validation | Security | Idx | Uniq | FK | Tenant scoped | Audit |

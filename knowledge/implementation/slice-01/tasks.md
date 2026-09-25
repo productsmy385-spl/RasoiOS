@@ -88,7 +88,7 @@ All 227 original tasks start as **PLANNED**; 7 tasks (#228–#234) were added on
 | 49 | S1-P07-T003 | Kitchen sections services and actions | P07 | Backend Engineer | 2d | High | S1-P07-T001 | COMPLETED |
 | 50 | S1-P07-T004 | Staff management services | P07 | Backend Engineer | 3d | Critical | S1-P05-T003, S1-P03-T004 | COMPLETED |
 | 51 | S1-P07-T008 | Decision: media storage for images | P07 | Gopala Krishna (Project Owner) | 1d | Medium | S1-P01-T010 | COMPLETED |
-| 52 | S1-P07-T009 | Media uploads (decision-gated by Q-009) | P07 | Backend Engineer | 4d | Medium | S1-P07-T008, S1-P07-T002 | NOT_APPLICABLE |
+| 52 | S1-P07-T009 | Media uploads (ImageKit, ADR-017) | P07 | Backend Engineer | 4d | Medium | S1-P07-T008, S1-P07-T002 | COMPLETED |
 | 53 | S1-P08-T001 | Design tokens and Tailwind theme | P08 | Frontend Engineer | 2d | High | S1-P01-T003 | COMPLETED |
 | 54 | S1-P08-T002 | Typography with self-hosted fonts | P08 | Frontend Engineer | 1d | High | S1-P08-T001 | COMPLETED |
 | 55 | S1-P08-T003 | Icon system | P08 | Frontend Engineer | 1d | High | S1-P08-T001 | COMPLETED |
@@ -1966,7 +1966,7 @@ All 227 original tasks start as **PLANNED**; 7 tasks (#228–#234) were added on
 
 | # | Phase | Owner | Priority | Effort | Planned Start | Planned Finish | Actual Start | Actual Finish | Status |
 |---|---|---|---|---|---|---|---|---|---|
-| 52 | P07 Restaurant Management | Backend Engineer | Medium | 4d | — | — | 2026-09-22 | 2026-09-22 | NOT_APPLICABLE |
+| 52 | P07 Restaurant Management | Backend Engineer | Medium | 4d | — | — | 2026-09-25 | 2026-09-25 | COMPLETED |
 
 - **Dependencies:** S1-P07-T008, S1-P07-T002
 - **Requirements:** REQ-SEC-010, REQ-REST-002, REQ-MENU-003
@@ -1986,8 +1986,9 @@ All 227 original tasks start as **PLANNED**; 7 tasks (#228–#234) were added on
   - `TC-SEC-017` [integration] Storage keys are tenant-prefixed; Tenant A cannot confirm or reference Tenant B asset ids.
 - **Acceptance criteria:**
   - If Q-009 rejects uploads, task status set to COMPLETED with note "Not applicable — URL allowlist retained" and TC-SEC-016/017 marked N/A in testing.md.
-- **Implementation notes:** Not applicable: Q-009 answered A (2026-09-22) — no image uploads in SLICE-01. Images are allow-listed HTTPS URLs (S1-P07-T002). MEDIA_ASSET, RH-MEDIA-01 and SA-MEDIA-01 are Future Scope.
-- **Affected files (actual):** —
+- **Implementation notes:** ~~Not applicable: Q-009 answered A (2026-09-22).~~ Reopened 2026-09-25 by RASOIOS-ADR-017 and implemented the same day with **ImageKit** instead of a private bucket. Differences from the plan above: uploads are proxied (RH-MEDIA-01 receives the file; no signed PUT URL and no SA-MEDIA-01 confirm step), so MEDIA_ASSET has no PENDING state; RH-MEDIA-02 `DELETE /api/v1/media/{assetId}` discards an unused upload; images are public CDN files (they are shown on the public site). Replaced images are released after the save commits; unreferenced uploads older than 24 h are swept on the tenant's next upload. Not done: gallery and category images (no schema for them) and uploads during platform-admin restaurant creation.
+- **Tests:** tests/integration/media/uploads.test.ts (26: TC-SEC-016, TC-SEC-017, TC-MEDIA-001…006), tests/unit/media.test.tsx (13).
+- **Affected files (actual):** `lib/media/{imagekit,image-file,purposes}.ts`, `lib/data/media.ts`, `lib/services/media.ts`, `lib/http/same-origin.ts`, `app/api/v1/media/uploads/route.ts`, `app/api/v1/media/[assetId]/route.ts`, `components/ui/image-uploader.tsx`, website and menu item editors, public `SiteImage`, `lib/env.ts`, `lib/validation/url.ts`, `prisma/migrations/0004_media_assets`.
 
 ### S1-P07-T010 — Website theme and section services
 

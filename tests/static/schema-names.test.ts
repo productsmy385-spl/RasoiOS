@@ -14,12 +14,12 @@ const { models, enums } = Prisma.dmmf.datamodel;
 
 describe("TC-DB-003 schema names", () => {
   // 28 since migration 0002 added WEBSITE_SECTION (ADR-013 §6); 29 since 0003 added PRINTER_DISCOVERY (ADR-015).
-  // MEDIA_ASSET is Future Scope: Q-009 answered A.
-  it("has the 29 unconditional entities", () => {
+  // 30 since 0004 added MEDIA_ASSET (ADR-017, which superseded Q-009 A).
+  it("has the 30 unconditional entities", () => {
     expect(models.map((m) => m.name).sort()).toEqual(
       [
         "AuditLog", "BusinessDayClose", "Customer", "DailyMenu", "DailyMenuItem", "KitchenSection", "KotItem",
-        "KotTicket", "MenuCategory", "MenuItem", "MenuItemAddon", "MenuItemVariant", "Order", "OrderItem",
+        "KotTicket", "MediaAsset", "MenuCategory", "MenuItem", "MenuItemAddon", "MenuItemVariant", "Order", "OrderItem",
         "OrderItemAddon", "PrintAgent", "PrintJob", "Printer", "PrinterDiscovery", "RateLimitBucket", "Restaurant", "RestaurantHours",
         "SocialPost", "Tenant", "TenantCounter", "Transaction", "User", "UserTenant", "WebsiteSection",
       ].sort(),

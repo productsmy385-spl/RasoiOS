@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { normalizeRootDomain } from "./tenancy/hostnames";
-import { parseImageHostList } from "./validation/url";
+import { imageKitHost, parseImageHostList } from "./validation/url";
 
 /**
  * Server environment validation (S1-P01-T004, SC-SEC-01, SC-AUTH-02).
@@ -22,6 +22,9 @@ const nonPlaceholder = z
   .trim()
   .min(1, "is required")
   .refine((v) => !PLACEHOLDER.test(v), "contains a placeholder value");
+
+/** `VAR=""` in a .env file or a dashboard means "not set" for optional integrations. */
+const blankAsUnset = (value: unknown): unknown => (typeof value === "string" && value.trim() === "" ? undefined : value);
 
 const envSchema = z
   .object({
@@ -58,11 +61,30 @@ const envSchema = z
       .string()
       .default("")
       .refine((v) => parseImageHostList(v) !== null, "must be a comma-separated list of hostnames"),
+    // ImageKit image uploads (RASOIOS-ADR-017 §7). OPTIONAL, both or neither: unset, uploads answer 503
+    // UPLOADS_DISABLED and pasted image links keep working. The private key is a server secret — never NEXT_PUBLIC_.
+    // IMAGEKIT_PUBLIC_KEY is not used: uploads are proxied through the server, so no browser-side SDK needs it.
+    IMAGEKIT_PRIVATE_KEY: z.preprocess(
+      blankAsUnset,
+      nonPlaceholder.refine((v) => v.startsWith("private_"), "must be an ImageKit private key (private_…)").optional(),
+    ),
+    IMAGEKIT_URL_ENDPOINT: z.preprocess(
+      blankAsUnset,
+      z
+        .string()
+        .trim()
+        .refine((v) => imageKitHost(v) !== null && /^https:\/\/[^/?#]+(\/[A-Za-z0-9_-]+)*\/?$/.test(v), "must be the ImageKit URL endpoint, e.g. https://ik.imagekit.io/your_id")
+        .optional(),
+    ),
     TRUSTED_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
     LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
     SUPER_ADMIN_BOOTSTRAP_EMAIL: z.string().email("must be an email address").optional(),
   })
   .superRefine((env, ctx) => {
+    if ((env.IMAGEKIT_PRIVATE_KEY === undefined) !== (env.IMAGEKIT_URL_ENDPOINT === undefined)) {
+      const missing = env.IMAGEKIT_PRIVATE_KEY === undefined ? "IMAGEKIT_PRIVATE_KEY" : "IMAGEKIT_URL_ENDPOINT";
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [missing], message: "is required when the other ImageKit setting is set" });
+    }
     if (env.NODE_ENV !== "production") return;
     // A production build served on loopback (CI end-to-end runs, a local `next start`) never crosses a network, so
     // there is nothing for TLS to protect. Every other host — including private addresses — still needs https.

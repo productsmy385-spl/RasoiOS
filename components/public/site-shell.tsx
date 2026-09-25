@@ -38,7 +38,7 @@ function SiteHeader({ view }: { view: SiteView }) {
     <header className="border-b border-border-subtle">
       <div className="mx-auto flex w-full max-w-public flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6">
         <a href={view.homeHref} className="flex items-center gap-3">
-          <SiteImage src={site.identity.logoUrl} alt="" fallbackIcon={Store} className="h-10 w-10 rounded-xl" />
+          <SiteImage src={site.identity.logoUrl} alt="" fallbackIcon={Store} displayWidth={40} className="h-10 w-10 rounded-xl" />
           <span className="font-display text-heading">{site.restaurant.name}</span>
         </a>
         <div className="flex min-w-0 items-center gap-4 overflow-x-auto">

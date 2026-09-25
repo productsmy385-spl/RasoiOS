@@ -36,7 +36,24 @@ export function parseImageHostList(value: string | undefined | null): string[] |
  * A malformed value fails closed (no hosts); `lib/env.ts` stops the server from starting with one.
  */
 export function allowedImageHosts(): string[] {
-  return parseImageHostList(process.env.ALLOWED_IMAGE_HOSTS) ?? [];
+  const hosts = parseImageHostList(process.env.ALLOWED_IMAGE_HOSTS) ?? [];
+  const imageKit = imageKitHost(process.env.IMAGEKIT_URL_ENDPOINT);
+  return imageKit && !hosts.includes(imageKit) ? [...hosts, imageKit] : hosts;
+}
+
+/**
+ * The host of the configured ImageKit URL endpoint (ADR-017 §7), allow-listed automatically so uploaded images pass
+ * the same URL validators as pasted ones. The host alone is not enough — `ik.imagekit.io` is shared by every ImageKit
+ * account — so saves additionally require an ImageKit URL to be one of the tenant's own assets (lib/services/media.ts).
+ */
+export function imageKitHost(endpoint: string | undefined | null): string | null {
+  if (!endpoint?.trim()) return null;
+  try {
+    const url = new URL(endpoint.trim());
+    return url.protocol === "https:" && HOSTNAME.test(url.hostname) ? url.hostname : null;
+  } catch {
+    return null;
+  }
 }
 
 export type ImageUrlProblem = "INVALID" | "TOO_LONG" | "NOT_HTTPS" | "CREDENTIALS" | "IP_LITERAL" | "PORT" | "HOST_NOT_ALLOWED";

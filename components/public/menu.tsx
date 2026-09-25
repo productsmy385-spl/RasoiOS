@@ -31,7 +31,7 @@ export function MenuItemCard({ item, formatting }: { item: PublicMenuItemData; f
         !item.isAvailable && "opacity-80",
       )}
     >
-      <SiteImage src={item.imageUrl} alt={item.name} fallbackIcon={menuIconFor(item.iconKey) ?? UtensilsCrossed} className="aspect-[4/3] w-full" />
+      <SiteImage src={item.imageUrl} alt={item.name} displayWidth={400} fallbackIcon={menuIconFor(item.iconKey) ?? UtensilsCrossed} className="aspect-[4/3] w-full" />
       <div className="flex flex-1 flex-col gap-2 p-4">
         <div className="flex items-start justify-between gap-3">
           <h3 className="min-w-0 break-words text-subheading">{item.name}</h3>

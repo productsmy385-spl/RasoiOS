@@ -1,11 +1,12 @@
 import type { NextConfig } from "next";
 import { normalizeRootDomain } from "./lib/tenancy/hostnames";
-import { imageRemotePatterns, parseImageHostList } from "./lib/validation/url";
+import { allowedImageHosts as configuredImageHosts, imageRemotePatterns } from "./lib/validation/url";
 
 // `next/image` may load remote images only from the hosts staff are allowed to use for logo/cover/menu images
-// (ALLOWED_IMAGE_HOSTS, S1-P07-T002, SC-VAL-04) — the same list the server-side validators check. Clerk's avatar
-// host serves signed-in users' profile pictures, which are not user-entered URLs.
-const allowedImageHosts = parseImageHostList(process.env.ALLOWED_IMAGE_HOSTS) ?? [];
+// (ALLOWED_IMAGE_HOSTS, S1-P07-T002, SC-VAL-04, plus the ImageKit endpoint host, ADR-017) — the same list the
+// server-side validators check. Clerk's avatar host serves signed-in users' profile pictures, which are not
+// user-entered URLs.
+const allowedImageHosts = configuredImageHosts();
 
 // Restaurant websites are served from tenant sub-domains (S1-P09-T011, ADR-012), so the development server has to
 // accept `/_next/*` requests from `<slug>.localhost` and from `<slug>.<PUBLIC_ROOT_DOMAIN>`. Development only.

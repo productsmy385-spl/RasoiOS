@@ -125,7 +125,7 @@ Supersedes v1.0 questions: old Q-001 (certified printers) → Q-011 · old Q-002
 - **Blocking?** Yes — for S1-P07-T009
 - **Owner:** Gopala Krishna
 - **Decision deadline:** Before S1-P07-T009 starts (gate S1-P07-T008)
-- **Status:** ANSWERED 2026-09-22 — **A**: allow-listed HTTPS image URLs only in SLICE-01; no uploads, no object storage. S1-P07-T009 is NOT_APPLICABLE; MEDIA_ASSET and RH-MEDIA-01/SA-MEDIA-01 are Future Scope.
+- **Status:** ~~ANSWERED 2026-09-22 — **A**: allow-listed HTTPS image URLs only in SLICE-01; no uploads, no object storage.~~ **SUPERSEDED 2026-09-25 by RASOIOS-ADR-017** (Project Owner): uploads to **ImageKit**, proxied through the app server; allow-listed URLs remain supported. S1-P07-T009 reopened and implemented.
 
 ### Q-010 — Which operating systems and packaging for the print agent?
 - **Category:** Printing

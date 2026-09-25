@@ -41,6 +41,14 @@ v1.0 stated "PostgreSQL plugin with automated connection pooling" and "Health Ch
 - **No pre-deploy migration yet.** There is no `prisma/migrations` folder. S1-P02-T003 adds `"preDeployCommand": ["npm run prisma:deploy"]` to `railway.json` in the same pull request as the first migration.
 - `tests/static/deploy-config.test.ts` checks that `railway.json` uses existing npm scripts, generates Prisma before building, and contains no secret values.
 
+## ImageKit (RASOIOS-ADR-017, 2026-09-25)
+
+Set on the `web` service to turn image uploads on (both or neither; blank = off, image-link fields keep working):
+`IMAGEKIT_PRIVATE_KEY` (secret, `private_…`) and `IMAGEKIT_URL_ENDPOINT` (`https://ik.imagekit.io/<id>`), from the
+ImageKit dashboard → Developer options. Never as `NEXT_PUBLIC_`. The endpoint host is allow-listed for images
+automatically; redeploy after setting them (`next.config.ts` reads it at build). Migration `0004_media_assets` runs
+in the pre-deploy step.
+
 ## Staging provisioning runbook (owner-approved step)
 
 The Railway CLI on the development machine (v5.43.1) is signed in, but no `rasoios` project exists [observed 2026-09-15, `railway list`]. Creating one is outward-facing and may be billable, so it waits for the Project Owner to confirm the workspace and plan.

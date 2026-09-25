@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { imageKitSized } from "@/lib/media/purposes";
 import { PublicSitePage } from "@/components/public/site-shell";
 import { siteHomeHref, siteView } from "@/components/public/site-view";
 import { canonicalPublicUrl, resolvedTenantSlug } from "@/lib/tenancy/request";
@@ -38,13 +39,13 @@ export async function generateMetadata({ params }: PublicRestaurantPageProps): P
   return {
     title,
     description,
-    ...(site.identity.faviconUrl ? { icons: { icon: site.identity.faviconUrl } } : {}),
+    ...(site.identity.faviconUrl ? { icons: { icon: imageKitSized(site.identity.faviconUrl, 64) } } : {}),
     ...(canonical === null ? {} : { alternates: { canonical } }),
     openGraph: {
       title,
       ...(description ? { description } : {}),
       ...(canonical === null ? {} : { url: canonical }),
-      ...(image ? { images: [image] } : {}),
+      ...(image ? { images: [imageKitSized(image, 1200)] } : {}),
       type: "website",
     },
   };

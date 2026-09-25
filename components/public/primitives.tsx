@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Drumstick, EggFried, ImageOff, Leaf, type LucideIcon } from "lucide-react";
 import { Icon } from "@/components/ui/icon";
+import { imageKitSized, imageKitSrcSet } from "@/lib/media/purposes";
 import { cn } from "@/lib/ui/cn";
 import { MENU_ICONS, isMenuIconKey } from "@/lib/ui/icons";
 
@@ -37,6 +38,8 @@ export function SectionEmpty({ icon, children }: { icon: LucideIcon; children: R
  * A remote image the restaurant configured. URLs are https and host-allow-listed when they are saved (SC-VAL-04), and
  * a missing or broken one falls back to an icon rather than a blank box. Plain `<img>` rather than `next/image`: the
  * optimiser only accepts hosts configured at build time, and a restaurant's allow-list can change afterwards.
+ * Uploaded (ImageKit) images are requested at `displayWidth` and twice that for high-density screens, resized by
+ * ImageKit's CDN (ADR-017 §6); pasted links are shown as they are.
  */
 export function SiteImage({
   src,
@@ -44,12 +47,15 @@ export function SiteImage({
   className,
   fallbackIcon,
   priority = false,
+  displayWidth = 800,
 }: {
   src: string | null;
   alt: string;
   className?: string;
   fallbackIcon?: LucideIcon;
   priority?: boolean;
+  /** The widest the image is shown, in CSS pixels. */
+  displayWidth?: number;
 }) {
   if (!src) {
     // `alt=""` marks a decorative image (a logo beside the name it repeats), so its placeholder is hidden too.
@@ -66,7 +72,8 @@ export function SiteImage({
   return (
     // eslint-disable-next-line @next/next/no-img-element -- remote hosts are tenant-configured, not build-time known.
     <img
-      src={src}
+      src={imageKitSized(src, displayWidth)}
+      srcSet={imageKitSrcSet(src, displayWidth) ?? undefined}
       alt={alt}
       loading={priority ? "eager" : "lazy"}
       decoding="async"

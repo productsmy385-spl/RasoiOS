@@ -335,6 +335,7 @@ model Tenant {
   printJobs         PrintJob[]
   auditLogs         AuditLog[]
   socialPosts       SocialPost[]
+  mediaAssets       MediaAsset[]
   counters          TenantCounter[]
 
   @@index([status])
@@ -499,6 +500,7 @@ model User {
   requestedPrintJobs     PrintJob[]         @relation("PrintJobRequestedBy")
   printerDiscoveries     PrinterDiscovery[] @relation("PrinterDiscoveryRequestedBy")
   auditLogs              AuditLog[]         @relation("AuditActor")
+  uploadedMediaAssets    MediaAsset[]       @relation("MediaAssetUploadedBy")
   markedSocialPosts      SocialPost[]       @relation("SocialPostMarkedBy")
   createdSocialPosts     SocialPost[]       @relation("SocialPostCreatedBy")
 
@@ -1181,3 +1183,55 @@ model RateLimitBucket {
   @@map("rate_limit_buckets")
 }
 
+// ───────────────────────── E28 MEDIA_ASSET (RASOIOS-ADR-017; supersedes Q-009 A) ─────────────────────────
+
+/// What an uploaded image is for; decides the ImageKit folder and the permission needed (lib/media/purposes.ts).
+enum MediaPurpose {
+  LOGO
+  COVER
+  HERO
+  FAVICON
+  WEBSITE_SECTION
+  MENU_ITEM
+
+  @@map("media_purpose")
+}
+
+/// A row is written only after ImageKit has stored the file (no PENDING state: uploads are proxied, ADR-017 §2).
+enum MediaStatus {
+  READY
+  DELETED
+
+  @@map("media_status")
+}
+
+/// One image stored in ImageKit. Only the reference and metadata live here — never the bytes (ADR-017 §1).
+model MediaAsset {
+  id               String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String       @map("tenant_id") @db.Uuid
+  purpose          MediaPurpose
+  status           MediaStatus  @default(READY)
+  /// ImageKit fileId — the only handle used to delete the file.
+  providerFileId   String       @unique @map("provider_file_id") @db.VarChar(64)
+  /// /rasoios/restaurants/{tenantId}/{folder}/{uuid}.{ext}, built on the server.
+  storagePath      String       @unique @map("storage_path") @db.VarChar(255)
+  /// Untransformed CDN URL, exactly as stored in logo_url, image_url and the other image columns.
+  url              String       @unique @db.VarChar(2048)
+  contentType      String       @map("content_type") @db.VarChar(40)
+  byteSize         Int          @map("byte_size")
+  width            Int
+  height           Int
+  sha256           String       @db.Char(64)
+  originalFilename String?      @map("original_filename") @db.VarChar(120)
+  uploadedByUserId String       @map("uploaded_by_user_id") @db.Uuid
+  deletedAt        DateTime?    @map("deleted_at") @db.Timestamptz(6)
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  uploadedBy User   @relation("MediaAssetUploadedBy", fields: [uploadedByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, purpose, status])
+  @@map("media_assets")
+}

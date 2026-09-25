@@ -81,6 +81,7 @@ function Hero({ section, view }: SectionProps) {
           src={image}
           alt={site.restaurant.name}
           priority
+          displayWidth={720}
           fallbackIcon={Store}
           className="aspect-[4/3] w-full rounded-2xl shadow-e2 lg:aspect-[3/2]"
         />
@@ -175,7 +176,7 @@ function About({ section, view }: SectionProps) {
           )}
           {section.ctaLabel && section.ctaHref ? <SiteCta label={section.ctaLabel} href={section.ctaHref} className="self-start" /> : null}
         </div>
-        {section.imageUrl ? <SiteImage src={section.imageUrl} alt={view.site.restaurant.name} className="aspect-[4/3] w-full rounded-2xl" /> : null}
+        {section.imageUrl ? <SiteImage src={section.imageUrl} alt={view.site.restaurant.name} displayWidth={640} className="aspect-[4/3] w-full rounded-2xl" /> : null}
       </div>
     </Band>
   );
@@ -223,7 +224,7 @@ function Gallery({ section, view }: SectionProps) {
         <ul className="grid list-none grid-cols-2 gap-3 p-0 md:grid-cols-3 lg:grid-cols-4">
           {images.map((image) => (
             <li key={image.src}>
-              <SiteImage src={image.src} alt={image.alt} className="aspect-square w-full rounded-xl" />
+              <SiteImage src={image.src} alt={image.alt} displayWidth={360} className="aspect-square w-full rounded-xl" />
             </li>
           ))}
         </ul>

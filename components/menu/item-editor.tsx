@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErrorSummary, type SummaryItem } from "@/components/ui/form";
 import { MoneyField, PercentField, Select, Switch, TextArea, TextField } from "@/components/ui/inputs";
+import { ImageUploader } from "@/components/ui/image-uploader";
 import { useToast } from "@/components/ui/toast";
 import type { KitchenSectionOptionDto, MenuCategoryDto, MenuItemDetailDto } from "@/lib/data/menu";
 import type { ActionResult } from "@/lib/http/action";
@@ -339,18 +340,15 @@ export function ItemEditor({ item, categories, kitchenSections, canManage, curre
               help="Shown on the public menu as the standard veg / non-veg marking."
               onChange={(event) => set("dietaryType", event.target.value)}
             />
-            <TextField
-              label="Image link"
-              type="url"
-              inputMode="url"
-              maxLength={2048}
-              autoComplete="off"
+            <ImageUploader
+              label="Food photo"
+              purpose="MENU_ITEM"
+              shape="square"
               disabled={readOnly}
               value={form.imageUrl}
-              placeholder="https://"
               error={fieldErrors.imageUrl?.[0]}
-              help="An https link on a host your platform administrator allows. Leave it blank to use the icon below."
-              onChange={(event) => set("imageUrl", event.target.value)}
+              help="Shown on your menu and website. Leave it empty to use the icon below."
+              onChange={(url) => set("imageUrl", url)}
             />
             <IconPicker name="iconKey" label="Icon" disabled={readOnly} value={form.iconKey} onValueChange={(value) => set("iconKey", value)} help="Used when there is no picture." />
           </div>

@@ -27,6 +27,7 @@ import {
 import { withTx, type Tx } from "@/lib/data/tx";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
+import { assertOwnedImageUrls, imageUrlsBeforeSave, releaseUnusedImages } from "@/lib/services/media";
 import { businessDateFor, now } from "@/lib/time";
 import { MENU_ITEM_PAGE_SIZE, type CreateMenuItemData, type MenuItemListQueryData, type UpdateMenuItemData } from "@/lib/validation/menu";
 import { revalidatePublicSite } from "./public-revalidate";
@@ -144,6 +145,7 @@ const pick = (source: Record<string, unknown>, keys: readonly string[]): Record<
 
 /** SA-MENU-06 — created unpublished and available; the category (and section, if given) must be this tenant's. */
 export async function createItem(ctx: TenantContext, input: CreateMenuItemData): Promise<MenuItemDetailDto> {
+  await assertOwnedImageUrls(ctx, { imageUrl: input.imageUrl });
   const created = await withTx(ctx, async (tx) => {
     await requireActiveCategory(ctx, tx, input.categoryId);
     await requireActiveSection(ctx, tx, input.kitchenSectionId);
@@ -188,6 +190,9 @@ async function requireRow(ctx: TenantContext, tx: Tx, itemId: string): Promise<M
  */
 export async function updateItem(ctx: TenantContext, input: UpdateMenuItemData): Promise<MenuItemDetailDto> {
   const { itemId, expectedUpdatedAt, ...patch } = input;
+  // Uploaded images must be this tenant's own (SC-FILE-02); a replaced one is released after the save (ADR-017 §5).
+  await assertOwnedImageUrls(ctx, { imageUrl: patch.imageUrl });
+  const previousImages = patch.imageUrl === undefined ? [] : await imageUrlsBeforeSave(ctx, { kind: "menu_item", itemId });
   const result = await withTx(ctx, async (tx) => {
     const before = await lockActiveItem(ctx, tx, itemId);
     if (!before) throw new NotFoundError("Menu item not found.");
@@ -245,6 +250,7 @@ export async function updateItem(ctx: TenantContext, input: UpdateMenuItemData):
     }
     return { detail: itemDetailDto(after), published: after.isPublished };
   });
+  await releaseUnusedImages(ctx, previousImages);
   if (result.published) await revalidatePublicSite(ctx);
   return result.detail;
 }

@@ -18,6 +18,7 @@ import {
 } from "@/lib/data/restaurant";
 import { ValidationError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
+import { assertOwnedImageUrls, imageUrlsBeforeSave, releaseUnusedImages } from "@/lib/services/media";
 import type {
   ReplaceOpeningHoursData,
   UpdateBrandingData,
@@ -87,7 +88,11 @@ export async function updateProfile(ctx: TenantContext, input: UpdateRestaurantP
 
 /** SA-RST-02 — image URLs are already allowlisted and the accent contrast-checked by the schema (SC-VAL-04). */
 export async function updateBranding(ctx: TenantContext, input: UpdateBrandingData): Promise<RestaurantSettingsDto> {
+  // Uploaded images must be this tenant's own (SC-FILE-02); the ones replaced are released after the save (ADR-017 §5).
+  await assertOwnedImageUrls(ctx, { logoUrl: input.logoUrl, coverImageUrl: input.coverImageUrl });
+  const previous = await imageUrlsBeforeSave(ctx, { kind: "restaurant" });
   const restaurant = await updateRestaurantBranding(ctx, input);
+  await releaseUnusedImages(ctx, previous);
   await revalidatePublicSite(ctx);
   return restaurant;
 }
