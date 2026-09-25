@@ -26,6 +26,7 @@ export function UserMenu({
   switchHref,
   showName = false,
   className,
+  themeInPanelOnMobile = false,
 }: {
   name: string | null;
   email: string;
@@ -34,6 +35,8 @@ export function UserMenu({
   switchHref?: string;
   /** Show the name next to the avatar. */
   showName?: boolean;
+  /** Below 768 px the theme control is in the side panel (tenant console only). */
+  themeInPanelOnMobile?: boolean;
   className?: string;
 }) {
   const clerk = useClerk();
@@ -47,10 +50,12 @@ export function UserMenu({
   ];
 
   // The theme control sits beside the account menu, so every console header (tenant, kitchen, platform) gets exactly
-  // one, from one place (ADR-016).
+  // one, from one place (ADR-016). The tenant console passes `themeInPanelOnMobile`: below 768 px its side panel
+  // carries the control instead, leaving the phone header room for the restaurant's name. Shells without a side panel
+  // (kitchen, platform) keep it in the header at every width.
   return (
     <>
-    <ThemeToggle />
+    <ThemeToggle className={themeInPanelOnMobile ? "hidden md:inline-flex" : undefined} />
     <Menu
       items={items}
       header={

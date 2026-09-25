@@ -1,9 +1,12 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import type { TenantRole } from "@prisma/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { permissionsForTenantRole } from "@/lib/auth/permissions";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { HeaderNav } from "@/components/layout/header-nav";
+import { MobileNavPanel } from "@/components/layout/mobile-nav-panel";
 import { HUE_TILE } from "@/components/ui/icon-tile";
 import {
   activeAdminItem,
@@ -216,39 +219,59 @@ describe("rendered navigation", () => {
     expect(out).toContain("md:block");
   });
 
-  it("the bottom bar renders four destinations, the centre action and More, all at touch size", () => {
+  it("the bottom bar renders four destinations, the centre action and Menu in equal, aligned slots", () => {
     const caps = permissionsForTenantRole("TENANT_ADMIN");
     const items = bottomNavItemsFor("TENANT_ADMIN", caps);
-    const out = html(<BottomNav items={items} action={primaryActionFor(caps)} moreItems={moreNavItemsFor("TENANT_ADMIN", caps)} pathname="/restaurant/orders" />);
+    const out = html(<BottomNav items={items} action={primaryActionFor(caps)} pathname="/restaurant/orders" onOpenMenu={() => undefined} menuOpen={false} />);
     expect(out).toContain("glass-1 fixed inset-x-0 bottom-0");
     expect(out).toContain("md:hidden");
     for (const item of items) expect(out, item.key).toContain(`href="${item.href}"`);
     expect(out).toContain(`href="${primaryActionFor(caps)!.href}"`);
-    expect(out).toContain(">More");
-    // Every target is at least 44 px: 64 px tall tabs and a 56 px action button.
-    expect(out).toContain("h-16 min-w-11");
-    expect(out).toContain("h-14 w-14");
+    expect(out).toContain(">More<");
+    // Equal columns: the role's destinations + centre action + Menu.
+    const slots = items.length + 2;
+    expect(out).toContain(`repeat(${slots}, minmax(0, 1fr))`);
+    // Every slot has the same structure: 64 px tall, a 32 px icon pill, a one-line label — nothing raised out of the row.
+    expect(out.match(/h-16 min-w-0 flex-col/g)).toHaveLength(slots);
+    expect(out.match(/inline-flex h-8 w-12 shrink-0/g)).toHaveLength(slots);
+    expect(out).not.toContain("-mt-5");
+    // The restaurant's Menu destination keeps its own icon; only the More slot shows ☰ (lucide "menu").
+    expect(out.match(/lucide-menu\b/g) ?? []).toHaveLength(1);
     expect(out).toMatch(/aria-current="page"/);
   });
 
-  it("omits More when the bar and its action already reach everything the role may open", () => {
-    // A membership whose capabilities reach exactly the four bar destinations plus the centre action: nothing is
-    // left over, so the sheet would be empty and the trigger is not drawn at all.
-    const caps = new Set(["order:read", "customer:read", "menu:read", "restaurant:read", "kot:read"]);
-    expect(moreNavItemsFor("WAITER", caps)).toEqual([]);
-    const out = html(<BottomNav items={bottomNavItemsFor("WAITER", caps)} action={primaryActionFor(caps)} moreItems={[]} pathname="/restaurant/orders" />);
-    expect(out).not.toContain(">More");
+  it("the More slot opens the side panel (and says so to assistive tech)", () => {
+    const caps = permissionsForTenantRole("WAITER");
+    const out = html(<BottomNav items={bottomNavItemsFor("WAITER", caps)} action={primaryActionFor(caps)} pathname="/restaurant/orders" onOpenMenu={() => undefined} menuOpen={true} />);
+    expect(out).toMatch(/aria-haspopup="dialog"[^>]*>|aria-expanded="true"/);
+    expect(out).toContain('aria-expanded="true"');
   });
 
-  it("no shell renders a sidebar or an off-canvas navigation drawer", () => {
+  it("no destination can disappear on phones: everything not in the bar is in the side panel, for every role", () => {
+    for (const role of ROLES) {
+      const caps = permissionsForTenantRole(role);
+      const all = navItemsFor(caps);
+      const inBar = new Set([...bottomNavItemsFor(role, caps), primaryActionFor(caps)!].map((i) => i.key));
+      const panel = html(<MobileNavPanel open onClose={() => undefined} items={all} pathname="/restaurant/dashboard" title="Test" />);
+      for (const item of all.filter((i) => !inBar.has(i.key))) expect(panel, `${role} ${item.key}`).toContain(`href="${item.href}"`);
+    }
+    // …and the shell hands the panel the full capability-filtered list, not a subset.
+    const shell = readFileSync(path.resolve(__dirname, "../../components/layout/app-shell.tsx"), "utf8");
+    expect(shell).toContain("const items = navItemsFor(capabilities);");
+    expect(shell).toMatch(/<MobileNavPanel[^>]*items=[{]items[}]/);
+  });
+
+  it("no desktop sidebar: the only side panel is the mobile one, hidden from 768 px (ADR-013 §3, amended 2026-09-25)", () => {
     const shells = [
       html(<HeaderNav items={adminItems} pathname="/restaurant/dashboard" />),
-      html(<BottomNav items={adminItems.slice(0, 4)} action={primaryActionFor(permissionsForTenantRole("TENANT_ADMIN"))} moreItems={[]} pathname="/restaurant/dashboard" />),
+      html(<BottomNav items={adminItems.slice(0, 4)} action={primaryActionFor(permissionsForTenantRole("TENANT_ADMIN"))} pathname="/restaurant/dashboard" onOpenMenu={() => undefined} menuOpen={false} />),
     ];
     for (const out of shells) {
       expect(out).not.toContain("<aside");
       expect(out).not.toContain("w-sidebar");
     }
+    const panel = readFileSync(path.resolve(__dirname, "../../components/layout/mobile-nav-panel.tsx"), "utf8");
+    expect(panel).toContain('className="md:hidden"');
   });
 });
 

@@ -70,6 +70,15 @@ is no persistent desktop sidebar. Below 768 px the header keeps brand and profil
 glass bottom bar with the role's four most-used destinations plus a central action button and "More". Navigation is
 filtered by capability; the server still authorises every page and action (SC-RBAC-08).
 
+- *Amendment 2026-09-25 (Project Owner request):* **below 768 px only**, every feature is also reachable from a
+  full-height **left side panel**, opened by a ☰ button in the mobile header and by the bottom bar's last slot, now
+  labelled **Menu** (it replaces the "More" bottom sheet). The bottom bar became a grid of equal slots with identical
+  structure (32 px icon pill + one-line label), so icons align exactly; the centre action is a filled pill in the row
+  instead of a raised circle. Desktop is unchanged: header navigation, no sidebar. Code:
+  `components/layout/mobile-nav-panel.tsx`, `bottom-nav.tsx`, `app-shell.tsx`.
+- *Also 2026-09-25 (Project Owner request):* Reports removed from the TENANT_ADMIN and MANAGER phone bar; it remains
+  in the side panel. The bar holds up to four destinations (`BOTTOM_NAV_PRESETS`, `lib/ui/navigation.ts`).
+
 ### 4. Fewer, larger dashboard sections
 
 The dashboard is a context header, one metric row, one quick-actions block and live operational panels (orders,

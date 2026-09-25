@@ -118,3 +118,46 @@ test.describe("TC-RESP-003 platform admin pages fit every width", () => {
     });
   }
 });
+
+test.describe("TC-RESP-004 mobile side panel and bottom bar", () => {
+  test.skip(!process.env.E2E_STAFF_EMAIL, "set E2E_STAFF_EMAIL to a development Clerk user with a tenant membership");
+
+  test("☰ opens the side panel, it fits the screen, and choosing a feature navigates and closes it", async ({ page }) => {
+    await signInWithEmail(page, process.env.E2E_STAFF_EMAIL!);
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto("/restaurant/dashboard", { waitUntil: "load" });
+
+    await page.getByRole("button", { name: "Open menu" }).click();
+    const panel = page.getByRole("navigation", { name: "All features" });
+    await expect(panel).toBeVisible();
+    const box = await panel.boundingBox();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(375);
+    expect(await panel.getByRole("link").count()).toBeGreaterThan(4);
+
+    await panel.getByRole("link", { name: "Orders" }).click();
+    // The development server may compile the page on first visit; allow for it.
+    await expect(page).toHaveURL(/\/restaurant\/orders/, { timeout: 30_000 });
+    await expect(panel).toBeHidden();
+  });
+
+  test("bottom bar icons share one baseline and equal widths", async ({ page }) => {
+    await signInWithEmail(page, process.env.E2E_STAFF_EMAIL!);
+    for (const width of [320, 375, 430]) {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto("/restaurant/dashboard", { waitUntil: "load" });
+      const bar = page.getByRole("navigation", { name: "Primary" });
+      const slots = await bar.locator(":scope > div > *").evaluateAll((els) =>
+        els.map((el) => {
+          const pill = el.firstElementChild!.getBoundingClientRect();
+          const slot = el.getBoundingClientRect();
+          return { width: Math.round(slot.width), pillTop: Math.round(pill.top), right: slot.right };
+        }),
+      );
+      expect(slots.length, `${width}px slot count`).toBeGreaterThan(2);
+      expect(new Set(slots.map((s) => s.pillTop)).size, `${width}px: every icon on one line`).toBe(1);
+      expect(Math.max(...slots.map((s) => s.width)) - Math.min(...slots.map((s) => s.width)), `${width}px: equal slots`).toBeLessThanOrEqual(1);
+      expect(Math.max(...slots.map((s) => s.right))).toBeLessThanOrEqual(width);
+    }
+  });
+});

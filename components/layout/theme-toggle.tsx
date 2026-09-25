@@ -5,6 +5,7 @@ import { Monitor, Moon, Sun } from "lucide-react";
 import { getThemePreferenceAction, setThemePreferenceAction } from "@/app/account/theme-actions";
 import { Icon } from "@/components/ui/icon";
 import { Menu } from "@/components/ui/menu";
+import { cn } from "@/lib/ui/cn";
 import {
   DEFAULT_THEME_PREFERENCE,
   isThemePreference,
@@ -44,7 +45,7 @@ function cookiePreference(): ThemePreferenceValue | null {
   return match && isThemePreference(match[1]) ? match[1] : null;
 }
 
-export function ThemeToggle() {
+export function ThemeToggle({ className, showLabel = false }: { className?: string; showLabel?: boolean } = {}) {
   const [preference, setPreference] = React.useState<ThemePreferenceValue>(DEFAULT_THEME_PREFERENCE);
 
   React.useEffect(() => {
@@ -91,9 +92,14 @@ export function ThemeToggle() {
         <button
           {...props}
           aria-label={`Theme: ${current.label}. Change theme`}
-          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-fg-secondary transition-colors duration-fast ease-standard hover:bg-raised hover:text-fg-primary"
+          className={cn(
+            "inline-flex h-11 shrink-0 items-center justify-center gap-3 rounded-xl text-fg-secondary transition-colors duration-fast ease-standard hover:bg-raised hover:text-fg-primary",
+            showLabel ? "w-full justify-start px-2 text-label text-fg-primary" : "w-11",
+            className,
+          )}
         >
           <Icon icon={current.icon} size={20} />
+          {showLabel && <span>Theme: {current.label}</span>}
         </button>
       )}
     />

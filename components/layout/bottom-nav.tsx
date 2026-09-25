@@ -1,133 +1,83 @@
 "use client";
 
-import * as React from "react";
 import Link from "next/link";
-import { Ellipsis } from "lucide-react";
-import { Drawer } from "@/components/ui/drawer";
+import { Menu as MenuIcon } from "lucide-react";
 import { Icon } from "@/components/ui/icon";
-import { IconTile } from "@/components/ui/icon-tile";
 import { cn } from "@/lib/ui/cn";
-import { groupNavItems, isNavItemActive, NAV_HUES, NAV_ICONS, type NavItem } from "@/lib/ui/navigation";
+import { isNavItemActive, NAV_ICONS, type NavItem } from "@/lib/ui/navigation";
 
 /**
- * Glass bottom bar below 768 px (ADR-013 §3, frontend.md §3.1). The header keeps brand, notifications and profile;
- * primary navigation moves down here: the role's four most relevant destinations, a raised centre action for the
- * role's main live action, and a **More** sheet holding everything else the role may reach. There is no off-canvas
- * sidebar drawer anywhere in the product.
+ * Glass bottom bar below 768 px (ADR-013 §3, amended 2026-09-25). The role's four most relevant destinations, the
+ * role's main live action in the centre, and **More** (☰), which opens the side panel with every feature. ("More",
+ * not "Menu": the restaurant's own Menu is a destination in the same bar.)
  *
- * Every target is 44 px or larger, the bar clears the home indicator with `env(safe-area-inset-bottom)`, and the
- * active destination is marked with a tinted tile plus `aria-current="page"`, never colour alone.
+ * Alignment: the bar is a grid of equal columns, and every slot — links, the centre action and Menu — has the same
+ * structure (a 32 px icon pill on one baseline, a one-line label under it), so icons and labels line up exactly at
+ * every width. The centre action is set apart by its filled brand pill, not by breaking out of the row.
+ *
+ * Every slot is at least 44 px wide and 64 px tall, the bar clears the home indicator with
+ * `env(safe-area-inset-bottom)`, and the current page is marked with a tint plus `aria-current="page"`.
  */
-function BottomLink({ item, active, onNavigate }: { item: NavItem; active: boolean; onNavigate?: () => void }) {
+/** Shorter names for the phone bar only; the side panel and the desktop header keep the full labels. */
+const BAR_LABELS: Partial<Record<NavItem["key"], string>> = { dashboard: "Home", transactions: "Payments", dailyMenu: "Today" };
+
+const SLOT = "flex h-16 min-w-0 flex-col items-center justify-center gap-1 px-0.5 text-caption leading-none transition-colors duration-fast ease-standard";
+const PILL = "inline-flex h-8 w-12 shrink-0 items-center justify-center rounded-full";
+
+// "more" is the side-panel slot; it must not share a name with the "menu" destination (the restaurant's Menu).
+function Slot({ icon, label, active, emphasis }: { icon: NavItem["key"] | "more"; label: string; active?: boolean; emphasis?: boolean }) {
   return (
-    <Link
-      href={item.href}
-      aria-current={active ? "page" : undefined}
-      onClick={onNavigate}
-      className={cn(
-        "flex h-16 min-w-11 flex-1 flex-col items-center justify-center gap-1 px-1 text-caption transition-colors duration-fast ease-standard",
-        active ? "text-fg-primary" : "text-fg-secondary hover:text-fg-primary",
-      )}
-    >
-      <span className={cn("inline-flex h-7 w-11 items-center justify-center rounded-full", active && "bg-action-primary/12")}>
-        <Icon icon={NAV_ICONS[item.key]} size={20} className={active ? "text-fg-accent" : undefined} />
+    <>
+      <span className={cn(PILL, emphasis ? "brand-gradient text-action-primary-fg shadow-e1" : active && "bg-action-primary/12")}>
+        <Icon icon={icon === "more" ? MenuIcon : NAV_ICONS[icon]} size={20} className={!emphasis && active ? "text-fg-accent" : undefined} />
       </span>
-      <span className="max-w-full truncate">{item.label}</span>
-    </Link>
+      <span className="block w-full truncate text-center">{label}</span>
+    </>
   );
 }
 
 export function BottomNav({
   items,
   action,
-  moreItems,
   pathname,
+  onOpenMenu,
+  menuOpen,
 }: {
   items: readonly NavItem[];
   action: NavItem | null;
-  moreItems: readonly NavItem[];
   pathname: string;
+  onOpenMenu: () => void;
+  menuOpen: boolean;
 }) {
-  const [moreOpen, setMoreOpen] = React.useState(false);
-  React.useEffect(() => setMoreOpen(false), [pathname]);
-
   if (items.length === 0 && !action) return null;
   const left = items.slice(0, 2);
   const right = items.slice(2, 4);
+  const columns = left.length + right.length + (action ? 1 : 0) + 1;
+
+  const link = (item: NavItem, emphasis = false) => {
+    const active = isNavItemActive(item, pathname);
+    return (
+      <Link
+        key={item.key}
+        href={item.href}
+        aria-current={active ? "page" : undefined}
+        className={cn(SLOT, active || emphasis ? "text-fg-primary" : "text-fg-secondary hover:text-fg-primary")}
+      >
+        <Slot icon={item.key} label={BAR_LABELS[item.key] ?? item.label} active={active} emphasis={emphasis} />
+      </Link>
+    );
+  };
 
   return (
-    <>
-      <nav
-        aria-label="Primary"
-        className="glass-1 fixed inset-x-0 bottom-0 z-header border-t md:hidden print:hidden"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-      >
-        <div className="flex items-stretch">
-          {left.map((item) => (
-            <BottomLink key={item.key} item={item} active={isNavItemActive(item, pathname)} />
-          ))}
-
-          {action && (
-            <div className="flex flex-1 items-center justify-center px-1">
-              <Link
-                href={action.href}
-                aria-current={isNavItemActive(action, pathname) ? "page" : undefined}
-                className="brand-gradient -mt-5 inline-flex h-14 w-14 flex-col items-center justify-center gap-0.5 rounded-full text-action-primary-fg shadow-e2"
-              >
-                <Icon icon={NAV_ICONS[action.key]} size={24} />
-                <span className="sr-only">{action.label}</span>
-              </Link>
-            </div>
-          )}
-
-          {right.map((item) => (
-            <BottomLink key={item.key} item={item} active={isNavItemActive(item, pathname)} />
-          ))}
-
-          {moreItems.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setMoreOpen(true)}
-              aria-expanded={moreOpen}
-              aria-haspopup="dialog"
-              className="flex h-16 min-w-11 flex-1 flex-col items-center justify-center gap-1 px-1 text-caption text-fg-secondary transition-colors duration-fast ease-standard hover:text-fg-primary"
-            >
-              <span className="inline-flex h-7 w-11 items-center justify-center rounded-full">
-                <Icon icon={Ellipsis} size={20} />
-              </span>
-              More
-            </button>
-          )}
-        </div>
-      </nav>
-
-      <Drawer open={moreOpen} onClose={() => setMoreOpen(false)} title="More" side="bottom">
-        <div className="flex flex-col gap-5 pb-2">
-          {groupNavItems(moreItems).map(({ group, items: groupItems }) => (
-            <div key={group} className="flex flex-col gap-1">
-              <p className="px-1 pb-1 text-caption text-fg-secondary">{group}</p>
-              <ul className="grid grid-cols-2 gap-2">
-                {groupItems.map((item) => (
-                  <li key={item.key}>
-                    <Link
-                      href={item.href}
-                      aria-current={isNavItemActive(item, pathname) ? "page" : undefined}
-                      onClick={() => setMoreOpen(false)}
-                      className={cn(
-                        "flex min-h-14 items-center gap-3 rounded-xl border border-border-subtle px-3 py-2 text-label transition-colors duration-fast ease-standard",
-                        isNavItemActive(item, pathname) ? "bg-action-primary/12 text-fg-primary" : "text-fg-primary hover:bg-raised",
-                      )}
-                    >
-                      <IconTile icon={NAV_ICONS[item.key]} size="sm" tone={NAV_HUES[item.key]} />
-                      {item.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      </Drawer>
-    </>
+    <nav aria-label="Primary" className="glass-1 fixed inset-x-0 bottom-0 z-header border-t md:hidden print:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+      <div className="mx-auto grid max-w-lg" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+        {left.map((item) => link(item))}
+        {action && link(action, true)}
+        {right.map((item) => link(item))}
+        <button type="button" onClick={onOpenMenu} aria-expanded={menuOpen} aria-haspopup="dialog" className={cn(SLOT, "text-fg-secondary hover:text-fg-primary")}>
+          <Slot icon="more" label="More" active={menuOpen} />
+        </button>
+      </div>
+    </nav>
   );
 }
