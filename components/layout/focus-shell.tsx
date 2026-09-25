@@ -33,7 +33,7 @@ export function FocusShell({ children, indicators = [] }: { children: React.Reac
           <div className="flex h-14 items-center gap-3 px-4">
             {session && <RestaurantMark href="/restaurant" name={session.activeTenant.name} logoUrl={session.activeTenant.logoUrl} className="min-w-0" />}
             <div className="ml-auto flex shrink-0 items-center gap-2">
-              {session?.activeTenant.timezone && <LiveClock timezone={session.activeTenant.timezone} locale={localeForCountry(session.activeTenant.countryCode)} />}
+              {session?.activeTenant.timezone && <LiveClock timezone={session.activeTenant.timezone} locale={localeForCountry(session.activeTenant.countryCode)} className="hidden sm:flex" />}
               <NotificationsMenu indicators={indicators} />
               <Link
                 href={exitHref}

@@ -41,7 +41,7 @@ export function AppShell({ children, indicators = [] }: { children: React.ReactN
       <div className="page-wash flex min-h-screen flex-col bg-canvas text-fg-primary">
         <header className="glass-1 sticky top-0 z-header border-b print:hidden">
           <div className="mx-auto flex h-header w-full max-w-console items-center gap-3 px-4 sm:px-6 lg:px-8">
-            {session && <RestaurantMark href="/restaurant" name={session.activeTenant.name} logoUrl={session.activeTenant.logoUrl} className="max-w-[12rem] shrink-0 lg:max-w-xs" />}
+            {session && <RestaurantMark href="/restaurant" name={session.activeTenant.name} logoUrl={session.activeTenant.logoUrl} className="max-w-[12rem] shrink md:shrink-0 lg:max-w-xs" />}
             <HeaderNav items={items} pathname={pathname} />
             <div className="ml-auto flex shrink-0 items-center gap-2">
               {session && <ContextBlock session={session} />}

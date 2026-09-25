@@ -148,14 +148,16 @@ export function KitchenBoard({
       )}
 
       {/* Below lg one column at a time, chosen with a segmented control. */}
-      <div className="flex gap-2 lg:hidden" role="group" aria-label="Ticket status">
+      {/* Three equal columns that may shrink: on a narrow phone the count moves under the label instead of pushing the
+          row wider than the screen; each button stays a 48 px touch target. */}
+      <div className="grid grid-cols-3 gap-2 lg:hidden" role="group" aria-label="Ticket status">
         {COLUMNS.map((entry) => (
           <button
             key={entry.status}
             type="button"
             aria-pressed={column === entry.status}
             onClick={() => setColumn(entry.status)}
-            className={`inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl border px-3 text-subheading transition-colors duration-fast ease-standard ${
+            className={`inline-flex min-h-12 min-w-0 flex-col items-center justify-center gap-0 rounded-xl border px-2 py-1 text-label transition-colors duration-fast ease-standard min-[400px]:flex-row min-[400px]:gap-2 min-[400px]:px-3 sm:text-subheading ${
               column === entry.status ? "border-action-primary bg-action-primary/12 text-fg-accent" : "border-border-subtle bg-card text-fg-secondary"
             }`}
           >
